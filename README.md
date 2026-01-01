@@ -1,70 +1,73 @@
 # Word Search Generator
 
-A powerful tool for generating complete word search puzzle books with AI-powered word list generation, customizable formatting, and bulk export capabilities.
+A modern, browser-based word search puzzle generator built with Next.js 14+, TypeScript, and Tailwind CSS.
 
 ## Features
 
-### Core Generation Features
-- **Rapid Full-Book Creation**: Generate complete word search books (puzzles + answer keys) in minutes
-- **Automated Word Lists**: AI generates relevant word lists from themes (e.g., "Winter")
-- **Custom Word Input**: Manually add specific words alongside auto-generated ones
+- 🤖 **AI-Powered Word Generation**: Uses Groq API for fast, intelligent word generation from themes
+- 🎯 **Client-Side Puzzle Generation**: All puzzle grid generation happens in the browser - no server needed
+- 🎨 **Modern UI**: Beautiful dark-mode dashboard with interactive controls
+- 📱 **Responsive Design**: Works perfectly on all screen sizes
+- 📄 **PDF Export**: Generate high-quality PDFs instantly in the browser
+- ✨ **Interactive Preview**: Hover over words to see them highlighted in the grid
+- 🎲 **Smart Algorithm**: Improved word placement with aggressive retry logic
 
-### Customization Options
-- **Theme & Title Control**: Custom book titles and themes
-- **Grid Sizes**: 10x10, 15x15 (Large Print), 20x20 (Standard)
-- **Puzzle Configuration**: Control words per puzzle and total pages
-- **Difficulty Settings**: Easy, Medium, Hard
+## Tech Stack
 
-### Design Features
-- **Answer Key Styles**: Rectangles, Straight Lines, or Highlighting
-- **Bulk Exporting**: Export all pages at once
-- **Clean Formatting**: Auto-formatted pages with word lists
+- **Next.js 14+** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **Groq API** - Fast AI word generation
+- **shadcn/ui** - UI components
+- **Framer Motion** - Animations
+- **jsPDF** - PDF generation
+- **Lucide React** - Icons
 
-## Setup
+## Getting Started
 
 1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+npm install
 ```
 
-2. Set up environment variables (create `.env` file):
+2. Set up your Groq API key:
+   - Get your API key from [Groq Console](https://console.groq.com/)
+   - Create a `.env.local` file in the root directory
+   - Add your API key:
+   ```env
+   GROQ_API_KEY=your_groq_api_key_here
+   GROQ_MODEL=llama-3.3-70b-versatile
+   ```
 
-**FREE Options (Recommended):**
-
+3. Run the development server:
 ```bash
-# Option 1: Ollama (100% FREE, runs locally)
-# Install Ollama from https://ollama.ai, then run: ollama pull llama3.2
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
-
-# Option 2: Groq (FREE tier - very fast!)
-# Get free API key from https://console.groq.com
-GROQ_API_KEY=your_groq_api_key_here
-
-# Option 3: Gemini (has free tier)
-GEMINI_API_KEY=your_gemini_api_key_here
+npm run dev
 ```
 
-**Paid Options:**
-```bash
-# OpenAI (paid)
-OPENAI_API_KEY=your_openai_api_key_here
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+
 ```
-
-**Note:** The tool will try APIs in this order: Ollama (free) → Groq (free) → Gemini → OpenAI → Fallback lists
-
-3. Run the application:
-```bash
-python app.py
+word-search-generator/
+├── app/              # Next.js app directory
+├── components/       # React components
+│   ├── PuzzlePreview.tsx
+│   ├── PDFDownloadButton.tsx
+│   └── ui/          # shadcn/ui components
+├── lib/             # Utility functions
+│   └── puzzle-generator.ts
+└── public/          # Static assets
 ```
-
-4. Open your browser to `http://localhost:5000`
 
 ## Usage
 
-1. Enter a theme (e.g., "Winter")
-2. Optionally add custom words
-3. Configure grid size, difficulty, and page count
-4. Select answer key style
-5. Generate and download your complete book!
+1. Enter a theme (e.g., "Winter", "Animals")
+2. Select grid size using the interactive grid selector
+3. Configure difficulty and other settings
+4. Preview the puzzle in real-time
+5. Download as PDF when ready
 
+## License
+
+MIT

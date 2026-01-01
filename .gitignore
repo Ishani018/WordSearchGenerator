@@ -1,21 +1,37 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-.venv
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
 
-# Ollama files
-blobs/
-manifests/
+# Testing
+/coverage
 
-# Environment variables
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
 .env
-.env.local
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # IDE
 .vscode/
@@ -24,13 +40,5 @@ manifests/
 *.swo
 
 # OS
-.DS_Store
 Thumbs.db
 desktop.ini
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.temp
