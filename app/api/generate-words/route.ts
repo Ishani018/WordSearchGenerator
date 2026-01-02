@@ -222,17 +222,156 @@ function getFallbackWords(theme: string, count: number): string[] {
   return ['WORD', 'SEARCH', 'PUZZLE', 'FIND', 'GRID', 'LETTER', 'SOLVE', 'CHALLENGE', 'BRAIN', 'GAME', 'FUN', 'ENJOY', 'LEARN', 'PLAY'].slice(0, count);
 }
 
+/**
+ * Parse sub-themes from AI response
+ */
+function parseSubThemes(responseText: string): string[] {
+  const themes: string[] = [];
+  const seen = new Set<string>();
+  
+  for (const line of responseText.split('\n')) {
+    const cleaned = line.trim();
+    // Remove common prefixes
+    const withoutPrefix = cleaned.replace(/^[0-9.\-*•()\[\]\s]+/, '');
+    // Remove trailing punctuation
+    const withoutSuffix = withoutPrefix.replace(/[.,;:!?]+$/, '');
+    
+    if (withoutSuffix && withoutSuffix.length > 2 && withoutSuffix.length < 50) {
+      const theme = withoutSuffix.trim();
+      const lowerTheme = theme.toLowerCase();
+      if (!seen.has(lowerTheme)) {
+        seen.add(lowerTheme);
+        themes.push(theme);
+      }
+    }
+  }
+  
+  return themes;
+}
+
+/**
+ * Expand topic into sub-themes and generate words for each
+ */
+async function expandTopic(mainTheme: string, wordsPerChapter: number): Promise<{
+  bookTitle: string;
+  chapters: Array<{ title: string; words: string[] }>;
+}> {
+  if (!GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY environment variable is not set');
+  }
+
+  const groq = new Groq({
+    apiKey: GROQ_API_KEY,
+  });
+
+  // Step 1: Generate sub-themes
+  const subThemePrompt = `Generate 20-50 distinct sub-themes or chapters related to "${mainTheme}".
+
+Requirements:
+- Return 20-50 sub-themes
+- One sub-theme per line
+- Each sub-theme should be a specific, focused topic (e.g., "Skiing Equipment", "Winter Holidays", "Arctic Animals")
+- Sub-themes should be diverse and cover different aspects of ${mainTheme}
+- Do NOT include numbers, bullet points, dashes, or formatting
+- Just list the sub-themes, one per line
+
+Example format:
+Skiing Equipment
+Winter Holidays
+Arctic Animals
+Warm Clothing
+...
+
+Generate sub-themes now:`;
+
+  try {
+    const subThemeCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: subThemePrompt }],
+      model: GROQ_MODEL,
+      temperature: 0.8,
+      max_tokens: 1000,
+    });
+
+    const subThemeText = subThemeCompletion.choices[0]?.message?.content || '';
+    const subThemes = parseSubThemes(subThemeText).slice(0, 50); // Limit to 50
+
+    if (subThemes.length === 0) {
+      throw new Error('No sub-themes generated');
+    }
+
+    // Step 2: Generate words for each sub-theme
+    const chapters: Array<{ title: string; words: string[] }> = [];
+    const allSeenWords = new Set<string>();
+
+    for (const subTheme of subThemes) {
+      try {
+        const words = await generateWordsFromGroq(subTheme, wordsPerChapter, Array.from(allSeenWords));
+        
+        // Filter out duplicates across all chapters
+        const uniqueWords = words.filter(word => {
+          const upperWord = word.toUpperCase();
+          if (!allSeenWords.has(upperWord)) {
+            allSeenWords.add(upperWord);
+            return true;
+          }
+          return false;
+        });
+
+        if (uniqueWords.length > 0) {
+          chapters.push({
+            title: subTheme,
+            words: uniqueWords,
+          });
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 300));
+      } catch (error) {
+        console.error(`Error generating words for sub-theme "${subTheme}":`, error);
+        // Continue with other sub-themes
+      }
+    }
+
+    return {
+      bookTitle: mainTheme,
+      chapters,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to expand topic');
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const theme = body.theme?.trim() || '';
-    const count = Math.min(Math.max(parseInt(body.count) || 20, 1), 100); // Clamp between 1-100
+    const mode = body.mode || 'words'; // 'words' or 'expand_topic'
+    const count = Math.min(Math.max(parseInt(body.count) || 20, 1), 200);
+    const wordsPerChapter = Math.min(Math.max(parseInt(body.wordsPerChapter) || 15, 5), 30);
 
     if (!theme) {
       return NextResponse.json(
         { error: 'Theme is required' },
         { status: 400 }
       );
+    }
+
+    // Handle topic expansion mode
+    if (mode === 'expand_topic') {
+      try {
+        const result = await expandTopic(theme, wordsPerChapter);
+        return NextResponse.json(result);
+      } catch (error) {
+        console.error('Topic expansion error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json(
+          { error: `Failed to expand topic: ${errorMessage}` },
+          { status: 500 }
+        );
+      }
     }
 
     // Check if Groq API key is configured

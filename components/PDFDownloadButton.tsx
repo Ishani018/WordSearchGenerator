@@ -1,22 +1,18 @@
 'use client';
 
 import { jsPDF } from 'jspdf';
-import { WordPosition } from '@/lib/puzzle-generator';
+import { PuzzleResult } from '@/lib/puzzle-generator';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface PDFDownloadButtonProps {
-  grid: string[][];
-  placedWords: WordPosition[];
+  puzzles: Array<PuzzleResult & { chapterTitle?: string }>;
   title: string;
-  answerStyle?: 'rectangles' | 'lines' | 'highlighting';
 }
 
 export default function PDFDownloadButton({
-  grid,
-  placedWords,
-  title,
-  answerStyle = 'rectangles'
+  puzzles,
+  title
 }: PDFDownloadButtonProps) {
   const generatePDF = () => {
     const doc = new jsPDF({
@@ -28,14 +24,27 @@ export default function PDFDownloadButton({
     const pageWidth = 8.5;
     const pageHeight = 11;
     const margin = 0.5;
-    const gridSize = grid.length;
     
-    // Page 1: Puzzle
-    drawPuzzlePage(doc, grid, placedWords, title, pageWidth, pageHeight, margin, gridSize);
+    // SECTION 1: All puzzle pages (unsolved)
+    puzzles.forEach((puzzle, index) => {
+      if (index > 0) {
+        doc.addPage();
+      }
+      drawPuzzlePage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin);
+    });
     
-    // Page 2: Answer Key
+    // SECTION 2: Answer Keys Title Page
     doc.addPage();
-    drawAnswerKeyPage(doc, grid, placedWords, title, pageWidth, pageHeight, margin, gridSize, answerStyle);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0); // Pure black
+    doc.text('Answer Keys', pageWidth / 2, pageHeight / 2, { align: 'center' });
+    
+    // SECTION 3: All answer key pages
+    puzzles.forEach((puzzle, index) => {
+      doc.addPage();
+      drawAnswerKeyPage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin);
+    });
     
     // Download
     doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
@@ -48,25 +57,32 @@ export default function PDFDownloadButton({
       size="lg"
     >
       <Download className="mr-2 h-4 w-4" />
-      Download PDF
+      Download PDF Book
     </Button>
   );
 }
 
 function drawPuzzlePage(
   doc: jsPDF,
-  grid: string[][],
-  placedWords: WordPosition[],
-  title: string,
+  puzzle: PuzzleResult & { chapterTitle?: string },
+  puzzleNumber: number,
+  totalPuzzles: number,
+  bookTitle: string,
   pageWidth: number,
   pageHeight: number,
-  margin: number,
-  gridSize: number
+  margin: number
 ) {
-  // Title at top
-  doc.setFontSize(18);
+  const grid = puzzle.grid;
+  const gridSize = grid.length;
+  
+  // Puzzle title - use chapter title if available
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, pageWidth / 2, margin + 0.3, { align: 'center' });
+  doc.setTextColor(0, 0, 0); // Pure black
+  const puzzleTitle = puzzle.chapterTitle 
+    ? `Puzzle #${puzzleNumber}: ${puzzle.chapterTitle}`
+    : `Puzzle #${puzzleNumber}`;
+  doc.text(puzzleTitle, pageWidth / 2, margin + 0.3, { align: 'center' });
   
   // Instructions
   doc.setFontSize(9);
@@ -79,12 +95,13 @@ function drawPuzzlePage(
   );
   
   // Calculate available space
-  const titleSpace = 0.8; // Title + instructions
-  const wordListSpace = 1.5; // Space for word list at bottom
-  const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace;
+  const titleSpace = 0.8;
+  const wordListSpace = 1.5;
+  const footerSpace = 0.3;
+  const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace - footerSpace;
   const availableWidth = pageWidth - margin * 2;
   
-  // Calculate cell size to fit both width and height
+  // Calculate cell size
   const cellSize = Math.min(
     availableWidth / gridSize,
     availableHeight / gridSize
@@ -95,14 +112,15 @@ function drawPuzzlePage(
   const startX = (pageWidth - gridWidth) / 2;
   const startY = margin + titleSpace;
   
-  // Draw grid with thin borders
-  doc.setLineWidth(0.002); // Very thin borders
-  doc.setDrawColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
+  // Draw grid with thin borders - ink saver
+  doc.setLineWidth(0.001); // Very thin borders
+  doc.setDrawColor(0, 0, 0); // Pure black
+  doc.setFont('courier', 'normal'); // Monospace for perfect alignment
   
   // Calculate font size based on cell size
-  const fontSize = Math.max(Math.min(cellSize * 12, 14), 8);
+  const fontSize = Math.max(Math.min(cellSize * 11, 12), 7);
   doc.setFontSize(fontSize);
+  doc.setTextColor(0, 0, 0); // Pure black
   
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
@@ -116,14 +134,14 @@ function drawPuzzlePage(
       const letter = grid[i][j];
       const textWidth = doc.getTextWidth(letter);
       const textX = x + (cellSize - textWidth) / 2;
-      const textY = y + cellSize * 0.7; // Vertically centered
+      const textY = y + cellSize * 0.7;
       
       doc.text(letter, textX, textY);
     }
   }
   
   // Word list below the grid
-  const words = placedWords.map(w => w.word);
+  const words = puzzle.placedWords.map(w => w.word);
   const wordListStartY = startY + gridHeight + 0.2;
   
   doc.setFontSize(10);
@@ -150,38 +168,41 @@ function drawPuzzlePage(
       }
     }
   }
+  
+  // Page number footer
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const pageNum = doc.internal.pages.length - 1;
+  doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.1, { align: 'center' });
 }
 
 function drawAnswerKeyPage(
   doc: jsPDF,
-  grid: string[][],
-  placedWords: WordPosition[],
-  title: string,
+  puzzle: PuzzleResult & { chapterTitle?: string },
+  puzzleNumber: number,
+  totalPuzzles: number,
+  bookTitle: string,
   pageWidth: number,
   pageHeight: number,
-  margin: number,
-  gridSize: number,
-  answerStyle: string
+  margin: number
 ) {
-  // Title at top
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`${title} - Answer Key`, pageWidth / 2, margin + 0.3, { align: 'center' });
+  const grid = puzzle.grid;
+  const gridSize = grid.length;
   
-  // Instructions
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    'Answer Key: Words are marked in the grid below.',
-    pageWidth / 2,
-    margin + 0.5,
-    { align: 'center' }
-  );
+  // Title - use chapter title if available
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0); // Pure black
+  const answerTitle = puzzle.chapterTitle
+    ? `Puzzle #${puzzleNumber}: ${puzzle.chapterTitle} - Answer Key`
+    : `Puzzle #${puzzleNumber} - Answer Key`;
+  doc.text(answerTitle, pageWidth / 2, margin + 0.3, { align: 'center' });
   
   // Calculate available space
   const titleSpace = 0.8;
   const wordListSpace = 1.5;
-  const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace;
+  const footerSpace = 0.3;
+  const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace - footerSpace;
   const availableWidth = pageWidth - margin * 2;
   
   // Calculate cell size
@@ -196,12 +217,13 @@ function drawAnswerKeyPage(
   const startY = margin + titleSpace;
   
   // Draw grid with thin borders
-  doc.setLineWidth(0.002);
-  doc.setDrawColor(0, 0, 0);
-  doc.setFont('helvetica', 'normal');
+  doc.setLineWidth(0.001);
+  doc.setDrawColor(0, 0, 0); // Pure black
+  doc.setFont('courier', 'normal'); // Monospace
   
-  const fontSize = Math.max(Math.min(cellSize * 12, 14), 8);
+  const fontSize = Math.max(Math.min(cellSize * 11, 12), 7);
   doc.setFontSize(fontSize);
+  doc.setTextColor(0, 0, 0); // Pure black
   
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
@@ -221,59 +243,44 @@ function drawAnswerKeyPage(
     }
   }
   
-  // Draw answer markings
-  if (answerStyle === 'rectangles') {
-    doc.setDrawColor(255, 0, 0); // Red
-    doc.setLineWidth(0.008); // Thin but visible
-    placedWords.forEach(({ positions }) => {
-      if (positions.length < 2) return;
-      
-      const minRow = Math.min(...positions.map(p => p[0]));
-      const maxRow = Math.max(...positions.map(p => p[0]));
-      const minCol = Math.min(...positions.map(p => p[1]));
-      const maxCol = Math.max(...positions.map(p => p[1]));
-      
-      const x = startX + minCol * cellSize;
-      const y = startY + minRow * cellSize;
-      const width = (maxCol - minCol + 1) * cellSize;
-      const height = (maxRow - minRow + 1) * cellSize;
-      
-      doc.rect(x, y, width, height);
-    });
-  } else if (answerStyle === 'lines') {
-    doc.setDrawColor(255, 0, 0);
-    doc.setLineWidth(0.01);
-    placedWords.forEach(({ positions }) => {
-      for (let i = 0; i < positions.length - 1; i++) {
-        const [r1, c1] = positions[i];
-        const [r2, c2] = positions[i + 1];
-        
-        const x1 = startX + c1 * cellSize + cellSize / 2;
-        const y1 = startY + r1 * cellSize + cellSize / 2;
-        const x2 = startX + c2 * cellSize + cellSize / 2;
-        const y2 = startY + r2 * cellSize + cellSize / 2;
-        
-        doc.line(x1, y1, x2, y2);
-      }
-    });
-  } else if (answerStyle === 'highlighting') {
-    doc.setFillColor(255, 255, 200); // Light yellow
-    placedWords.forEach(({ positions }) => {
-      positions.forEach(([r, c]) => {
-        const x = startX + c * cellSize;
-        const y = startY + r * cellSize;
-        doc.rect(x, y, cellSize, cellSize, 'F');
-      });
-    });
-  }
+  // Draw answer markings - COLORED HIGHLIGHTS
+  puzzle.placedWords.forEach(({ positions }, wordIndex) => {
+    if (positions.length < 2) return;
+    
+    // Use different colors for variety (cycling through a palette)
+    const colors = [
+      [255, 255, 0],   // Yellow
+      [173, 216, 230], // Light Blue
+      [144, 238, 144], // Light Green
+      [255, 182, 193], // Light Pink
+      [221, 160, 221], // Plum
+    ];
+    const color = colors[wordIndex % colors.length];
+    
+    // Draw filled rectangle for each word
+    const minRow = Math.min(...positions.map(p => p[0]));
+    const maxRow = Math.max(...positions.map(p => p[0]));
+    const minCol = Math.min(...positions.map(p => p[1]));
+    const maxCol = Math.max(...positions.map(p => p[1]));
+    
+    const x = startX + minCol * cellSize;
+    const y = startY + minRow * cellSize;
+    const width = (maxCol - minCol + 1) * cellSize;
+    const height = (maxRow - minRow + 1) * cellSize;
+    
+    // Draw filled rectangle with color
+    doc.setFillColor(color[0], color[1], color[2]);
+    doc.setDrawColor(color[0], color[1], color[2]);
+    doc.setLineWidth(0.002);
+    doc.rect(x, y, width, height, 'FD'); // 'FD' = fill and draw
+  });
   
   // Word list below the grid
-  const words = placedWords.map(w => w.word);
+  const words = puzzle.placedWords.map(w => w.word);
   const wordListStartY = startY + gridHeight + 0.2;
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setDrawColor(0, 0, 0);
   doc.text('Word List:', margin, wordListStartY);
   
   doc.setFont('helvetica', 'normal');
@@ -295,4 +302,10 @@ function drawAnswerKeyPage(
       }
     }
   }
+  
+  // Page number footer
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const pageNum = doc.internal.pages.length - 1;
+  doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.1, { align: 'center' });
 }
