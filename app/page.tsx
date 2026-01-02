@@ -30,6 +30,7 @@ export default function Home() {
   
   // Book mode settings
   const [wordsPerPuzzle, setWordsPerPuzzle] = useState(15);
+  const [numChapters, setNumChapters] = useState(25);
   
   // Single puzzle settings
   const [singleWords, setSingleWords] = useState(20);
@@ -48,6 +49,12 @@ export default function Home() {
   const [isGeneratingPuzzle, setIsGeneratingPuzzle] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const [structureProgress, setStructureProgress] = useState({ current: 0, total: 0, status: '' });
+  
+  // PDF front matter options
+  const [includeTitlePage, setIncludeTitlePage] = useState(false);
+  const [includeBelongsToPage, setIncludeBelongsToPage] = useState(false);
+  const [copyrightText, setCopyrightText] = useState('');
+  const [answerKeyStyle, setAnswerKeyStyle] = useState<'boxes' | 'strikethrough'>('boxes');
 
   // Generate book structure (topic expansion)
   const handleGenerateStructure = useCallback(async () => {
@@ -84,6 +91,8 @@ export default function Home() {
           theme: theme.trim(),
           mode: 'expand_topic',
           wordsPerChapter: wordsPerPuzzle,
+          numChapters: numChapters,
+          gridSize: gridSize, // Pass grid size so words fit
         }),
       });
 
@@ -213,14 +222,61 @@ export default function Home() {
         setBookPuzzles(puzzles);
         setIsGeneratingPuzzle(false);
         setGenerationProgress({ current: 0, total: 0 });
+        
+        // Show summary if some puzzles failed
+        const failedCount = bookStructure!.chapters.length - puzzles.length;
+        if (failedCount > 0) {
+          const failedChapters = bookStructure!.chapters
+            .filter((_, idx) => !puzzles.some(p => p.chapterTitle === bookStructure!.chapters[idx].title))
+            .map(c => c.title);
+          
+          alert(
+            `Generated ${puzzles.length} puzzle(s) successfully.\n\n` +
+            `${failedCount} puzzle(s) could not be generated:\n` +
+            `${failedChapters.join(', ')}\n\n` +
+            `This is likely because the words are too long for a ${gridSize}x${gridSize} grid (max word length: ${gridSize - 2}).\n\n` +
+            `Try:\n` +
+            `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
+            `- Reducing words per puzzle (currently ${wordsPerPuzzle})\n` +
+            `- Or regenerate the book structure with shorter words`
+          );
+        }
         return;
       }
 
       const chapter = bookStructure!.chapters[index];
       const wordsForPuzzle = chapter.words.slice(0, wordsPerPuzzle);
 
+      // Validate words fit in grid
+      const maxWordLength = gridSize - 2;
+      const validWords = wordsForPuzzle.filter(w => {
+        const word = w.toUpperCase().trim();
+        return word.length <= maxWordLength && word.length >= 4 && /^[A-Z]+$/.test(word);
+      });
+      
+      if (validWords.length === 0) {
+        console.warn(`No valid words for chapter "${chapter.title}" - all ${wordsForPuzzle.length} words are too long for grid size ${gridSize}x${gridSize} (max word length: ${maxWordLength})`);
+        console.warn(`Words in chapter: ${wordsForPuzzle.map(w => `${w} (${w.length})`).join(', ')}`);
+        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setTimeout(() => generateNextPuzzle(index + 1), 10);
+        return;
+      }
+      
+      if (validWords.length < wordsForPuzzle.length) {
+        console.warn(`Chapter "${chapter.title}": Filtered ${wordsForPuzzle.length - validWords.length} words that don't fit (grid: ${gridSize}x${gridSize}, max length: ${maxWordLength})`);
+      }
+
       try {
-        const result = generatePuzzle(wordsForPuzzle, gridSize, difficulty);
+        const result = generatePuzzle(validWords, gridSize, difficulty);
+        
+        // Check if we got a reasonable number of placed words
+        if (result.placedWords.length === 0) {
+          console.warn(`No words could be placed for chapter "${chapter.title}"`);
+          setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+          setTimeout(() => generateNextPuzzle(index + 1), 10);
+          return;
+        }
+        
         puzzles.push({
           ...result,
           chapterTitle: chapter.title,
@@ -230,10 +286,9 @@ export default function Home() {
         setTimeout(() => generateNextPuzzle(index + 1), 10);
       } catch (error) {
         console.error(`Error generating puzzle for chapter "${chapter.title}":`, error);
-        alert(`Failed to generate puzzle for "${chapter.title}"`);
-        setBookPuzzles(puzzles);
-        setIsGeneratingPuzzle(false);
-        setGenerationProgress({ current: 0, total: 0 });
+        // Continue with next puzzle instead of stopping
+        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setTimeout(() => generateNextPuzzle(index + 1), 10);
       }
     };
 
@@ -490,12 +545,12 @@ export default function Home() {
               <label className="block text-sm font-medium text-slate-300 mb-3">
                 Grid Size
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[10, 15, 20, 25].map((size) => (
+              <div className="grid grid-cols-3 gap-2">
+                {[8, 10, 12, 15, 18, 20, 22, 25, 30].map((size) => (
                   <button
                     key={size}
                     onClick={() => setGridSize(size)}
-                    className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
                       gridSize === size
                         ? 'border-blue-500 bg-blue-500/10 text-blue-400'
                         : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
@@ -505,23 +560,58 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+              <div className="mt-2">
+                <input
+                  type="number"
+                  value={gridSize}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val >= 5 && val <= 50) {
+                      setGridSize(val);
+                    }
+                  }}
+                  min={5}
+                  max={50}
+                  placeholder="Custom size"
+                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">Or enter custom size (5-50)</p>
+              </div>
             </div>
 
             {/* Mode-specific Controls */}
             {mode === 'book' ? (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Words per Puzzle
-                </label>
-                <input
-                  type="number"
-                  value={wordsPerPuzzle}
-                  onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
-                  min={5}
-                  max={30}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <>
+                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Number of Chapters
+                  </label>
+                  <input
+                    type="number"
+                    value={numChapters}
+                    onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
+                    min={5}
+                    max={100}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Number of chapters/sub-themes to generate
+                  </p>
+                </div>
+                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Words per Puzzle
+                  </label>
+                  <input
+                    type="number"
+                    value={wordsPerPuzzle}
+                    onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
+                    min={5}
+                    max={30}
+                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
             ) : (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -596,18 +686,97 @@ export default function Home() {
               </div>
             )}
 
-            {/* PDF Download */}
+            {/* PDF Front Matter Options (Book Mode) */}
             {mode === 'book' && bookPuzzles.length > 0 && (
-              <PDFDownloadButton
-                puzzles={bookPuzzles}
-                title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-              />
+              <>
+                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">PDF Options</h3>
+                  
+                  {/* Include Title Page */}
+                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeTitlePage}
+                      onChange={(e) => setIncludeTitlePage(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-300">Include Title Page</span>
+                  </label>
+                  
+                  {/* Include "This Book Belongs To" Page */}
+                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeBelongsToPage}
+                      onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-slate-300">Include "This Book Belongs To" Page</span>
+                  </label>
+                  
+                  {/* Copyright Text */}
+                  {includeTitlePage && (
+                    <div className="mt-3">
+                      <label className="block text-xs text-slate-400 mb-1">
+                        Copyright Text (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={copyrightText}
+                        onChange={(e) => setCopyrightText(e.target.value)}
+                        placeholder="Your Name or Company"
+                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Answer Key Style */}
+                  <div className="mt-3">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Answer Key Style
+                    </label>
+                    <select
+                      value={answerKeyStyle}
+                      onChange={(e) => setAnswerKeyStyle(e.target.value as 'boxes' | 'strikethrough')}
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="boxes">Boxes (Outline)</option>
+                      <option value="strikethrough">Strikethrough Lines</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <PDFDownloadButton
+                  puzzles={bookPuzzles}
+                  title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
+                  includeTitlePage={includeTitlePage}
+                  includeBelongsToPage={includeBelongsToPage}
+                  copyrightText={copyrightText}
+                  answerKeyStyle={answerKeyStyle}
+                />
+              </>
             )}
             {mode === 'single' && puzzle && (
-              <PDFDownloadButton
-                puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                title={`Word Search - ${theme || 'Puzzle'}`}
-              />
+              <>
+                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  <label className="block text-xs text-slate-400 mb-1">
+                    Answer Key Style
+                  </label>
+                  <select
+                    value={answerKeyStyle}
+                    onChange={(e) => setAnswerKeyStyle(e.target.value as 'boxes' | 'strikethrough')}
+                    className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="boxes">Boxes (Outline)</option>
+                    <option value="strikethrough">Strikethrough Lines</option>
+                  </select>
+                </div>
+                <PDFDownloadButton
+                  puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
+                  title={`Word Search - ${theme || 'Puzzle'}`}
+                  answerKeyStyle={answerKeyStyle}
+                />
+              </>
             )}
           </aside>
 

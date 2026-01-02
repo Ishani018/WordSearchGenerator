@@ -24,13 +24,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" className="dark">
-      <body
-        className={`${plusJakarta.variable} ${playfair.variable} antialiased`}
-      >
-        {children}
-      </body>
-    </html>
-  );
+        return (
+          <html lang="en" className="dark">
+            <body
+              className={`${plusJakarta.variable} ${playfair.variable} antialiased`}
+              suppressHydrationWarning
+            >
+              {children}
+            </body>
+          </html>
+        );
 }

@@ -7,7 +7,7 @@ const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 /**
  * Parse words from AI response text
  */
-function parseWordsFromResponse(responseText: string, count: number): string[] {
+function parseWordsFromResponse(responseText: string, count: number, maxLength: number = 20): string[] {
   const words: string[] = [];
   const seen = new Set<string>();
   
@@ -27,7 +27,7 @@ function parseWordsFromResponse(responseText: string, count: number): string[] {
       if (
         cleanWord &&
         cleanWord.length >= 4 &&
-        cleanWord.length <= 12 &&
+        cleanWord.length <= maxLength &&
         /^[A-Z]+$/.test(cleanWord) &&
         !seen.has(cleanWord)
       ) {
@@ -47,7 +47,7 @@ function parseWordsFromResponse(responseText: string, count: number): string[] {
       if (
         cleanWord &&
         cleanWord.length >= 4 &&
-        cleanWord.length <= 12 &&
+        cleanWord.length <= maxLength &&
         /^[A-Z]+$/.test(cleanWord) &&
         !seen.has(cleanWord)
       ) {
@@ -62,12 +62,38 @@ function parseWordsFromResponse(responseText: string, count: number): string[] {
 }
 
 /**
+ * Rate-limited API call helper with 429 retry logic
+ */
+async function rateLimitedApiCall<T>(
+  apiCall: () => Promise<T>,
+  retries: number = 1
+): Promise<T> {
+  try {
+    return await apiCall();
+  } catch (error: any) {
+    // Check if it's a 429 Too Many Requests error
+    const isRateLimit = error?.status === 429 || 
+                       error?.message?.includes('429') ||
+                       error?.message?.toLowerCase().includes('rate limit');
+    
+    if (isRateLimit && retries > 0) {
+      console.log('Rate limit hit (429), waiting 5 seconds before retry...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return rateLimitedApiCall(apiCall, retries - 1);
+    }
+    
+    throw error;
+  }
+}
+
+/**
  * Generate words from theme using Groq API
  */
 async function generateWordsFromGroq(
   theme: string,
   count: number,
-  existingWords: string[] = []
+  existingWords: string[] = [],
+  maxWordLength: number = 15
 ): Promise<string[]> {
   if (!GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY environment variable is not set');
@@ -77,13 +103,17 @@ async function generateWordsFromGroq(
     apiKey: GROQ_API_KEY,
   });
 
+  // Ensure maxWordLength is reasonable (at least 4, at most 20)
+  const safeMaxLength = Math.max(4, Math.min(maxWordLength, 20));
+  
   const prompt = `Generate exactly ${count} words related to the theme "${theme}".
 
 Requirements:
 - Return EXACTLY ${count} words
 - One word per line
 - All words in UPPERCASE
-- Words must be between 4 and 12 letters long
+- Words MUST be between 4 and ${safeMaxLength} letters long (CRITICAL: no words longer than ${safeMaxLength} letters)
+- Prefer shorter words (4-8 letters) when possible for better puzzle fit
 - Words should be suitable for word search puzzles
 - Do NOT include numbers, bullet points, dashes, or any other formatting
 - Do NOT include explanations or descriptions
@@ -99,17 +129,19 @@ WORD3
 Generate ${count} words now:`;
 
   try {
-    const completion = await groq.chat.completions.create({
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      model: GROQ_MODEL,
-      temperature: 0.7,
-      max_tokens: count * 20, // Estimate tokens needed
-    });
+    const completion = await rateLimitedApiCall(() =>
+      groq.chat.completions.create({
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        model: GROQ_MODEL,
+        temperature: 0.7,
+        max_tokens: count * 20, // Estimate tokens needed
+      })
+    );
 
     const responseText = completion.choices[0]?.message?.content || '';
 
@@ -119,9 +151,9 @@ Generate ${count} words now:`;
 
     console.log(`Groq response length: ${responseText.length} characters`);
 
-    // Parse words from response
-    let words = parseWordsFromResponse(responseText, count);
-    console.log(`Parsed ${words.length} words from initial response (needed ${count})`);
+    // Parse words from response with max length constraint
+    let words = parseWordsFromResponse(responseText, count, safeMaxLength);
+    console.log(`Parsed ${words.length} words from initial response (needed ${count}, max length: ${safeMaxLength})`);
 
     // If we still don't have enough words, make additional API calls
     const maxAttempts = 3;
@@ -144,27 +176,30 @@ Requirements:
 Generate ${needed} words now:`;
 
       try {
-        const additionalCompletion = await groq.chat.completions.create({
-          messages: [
-            {
-              role: 'user',
-              content: additionalPrompt,
-            },
-          ],
-          model: GROQ_MODEL,
-          temperature: 0.8,
-          max_tokens: needed * 20,
-        });
+        const additionalCompletion = await rateLimitedApiCall(() =>
+          groq.chat.completions.create({
+            messages: [
+              {
+                role: 'user',
+                content: additionalPrompt,
+              },
+            ],
+            model: GROQ_MODEL,
+            temperature: 0.8,
+            max_tokens: needed * 20,
+          })
+        );
 
         const additionalText = additionalCompletion.choices[0]?.message?.content || '';
-        const newWords = parseWordsFromResponse(additionalText, needed);
+        const newWords = parseWordsFromResponse(additionalText, needed, safeMaxLength);
 
         // Add unique new words
         const seenSet = new Set(allWords.map(w => w.toUpperCase()));
         for (const word of newWords) {
-          if (!seenSet.has(word.toUpperCase())) {
+          const upperWord = word.toUpperCase();
+          if (!seenSet.has(upperWord) && word.length >= 4 && word.length <= safeMaxLength) {
             allWords.push(word);
-            seenSet.add(word.toUpperCase());
+            seenSet.add(upperWord);
             if (allWords.length >= count) break;
           }
         }
@@ -252,10 +287,12 @@ function parseSubThemes(responseText: string): string[] {
 /**
  * Expand topic into sub-themes and generate words for each
  */
-async function expandTopic(mainTheme: string, wordsPerChapter: number): Promise<{
+async function expandTopic(mainTheme: string, wordsPerChapter: number, numChapters: number = 25, gridSize: number = 15): Promise<{
   bookTitle: string;
   chapters: Array<{ title: string; words: string[] }>;
 }> {
+  // Calculate max word length based on grid size (leave 2 cells margin)
+  const maxWordLength = Math.max(4, gridSize - 2);
   if (!GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY environment variable is not set');
   }
@@ -265,10 +302,11 @@ async function expandTopic(mainTheme: string, wordsPerChapter: number): Promise<
   });
 
   // Step 1: Generate sub-themes
-  const subThemePrompt = `Generate 20-50 distinct sub-themes or chapters related to "${mainTheme}".
+  const targetCount = Math.min(Math.max(numChapters, 5), 100); // Clamp between 5-100
+  const subThemePrompt = `Generate exactly ${targetCount} distinct sub-themes or chapters related to "${mainTheme}".
 
 Requirements:
-- Return 20-50 sub-themes
+- Return EXACTLY ${targetCount} sub-themes
 - One sub-theme per line
 - Each sub-theme should be a specific, focused topic (e.g., "Skiing Equipment", "Winter Holidays", "Arctic Animals")
 - Sub-themes should be diverse and cover different aspects of ${mainTheme}
@@ -293,42 +331,70 @@ Generate sub-themes now:`;
     });
 
     const subThemeText = subThemeCompletion.choices[0]?.message?.content || '';
-    const subThemes = parseSubThemes(subThemeText).slice(0, 50); // Limit to 50
+    const subThemes = parseSubThemes(subThemeText).slice(0, targetCount); // Limit to requested count
 
     if (subThemes.length === 0) {
       throw new Error('No sub-themes generated');
     }
 
-    // Step 2: Generate words for each sub-theme
+    // Step 2: Generate words for each sub-theme using rate-limited batching
     const chapters: Array<{ title: string; words: string[] }> = [];
     const allSeenWords = new Set<string>();
+    
+    const BATCH_SIZE = 3;
+    const INTER_BATCH_DELAY = 2000; // 2 seconds
+    
+    // Process sub-themes in batches
+    for (let i = 0; i < subThemes.length; i += BATCH_SIZE) {
+      const batch = subThemes.slice(i, i + BATCH_SIZE);
+      
+      // Process batch in parallel
+      const batchPromises = batch.map(async (subTheme) => {
+        try {
+          const words = await generateWordsFromGroq(subTheme, wordsPerChapter, Array.from(allSeenWords), maxWordLength);
+          
+          // Filter out duplicates and words that don't fit - STRICT validation
+          const uniqueWords = words
+            .map(word => word.toUpperCase().trim())
+            .filter(upperWord => {
+              // Ensure word fits in grid and is valid
+              if (upperWord.length > maxWordLength || upperWord.length < 4 || !/^[A-Z]+$/.test(upperWord)) {
+                console.warn(`Filtering out word "${upperWord}" (length: ${upperWord.length}, max: ${maxWordLength})`);
+                return false;
+              }
+              if (!allSeenWords.has(upperWord)) {
+                allSeenWords.add(upperWord);
+                return true;
+              }
+              return false;
+            });
 
-    for (const subTheme of subThemes) {
-      try {
-        const words = await generateWordsFromGroq(subTheme, wordsPerChapter, Array.from(allSeenWords));
-        
-        // Filter out duplicates across all chapters
-        const uniqueWords = words.filter(word => {
-          const upperWord = word.toUpperCase();
-          if (!allSeenWords.has(upperWord)) {
-            allSeenWords.add(upperWord);
-            return true;
+          if (uniqueWords.length > 0) {
+            return {
+              title: subTheme,
+              words: uniqueWords,
+            };
           }
-          return false;
-        });
-
-        if (uniqueWords.length > 0) {
-          chapters.push({
-            title: subTheme,
-            words: uniqueWords,
-          });
+          return null;
+        } catch (error) {
+          console.error(`Error generating words for sub-theme "${subTheme}":`, error);
+          return null;
         }
-
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error) {
-        console.error(`Error generating words for sub-theme "${subTheme}":`, error);
-        // Continue with other sub-themes
+      });
+      
+      // Wait for all requests in batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      
+      // Add successful chapters
+      for (const result of batchResults) {
+        if (result) {
+          chapters.push(result);
+        }
+      }
+      
+      // Add delay between batches (except after the last batch)
+      if (i + BATCH_SIZE < subThemes.length) {
+        await new Promise(resolve => setTimeout(resolve, INTER_BATCH_DELAY));
       }
     }
 
@@ -351,6 +417,8 @@ export async function POST(request: NextRequest) {
     const mode = body.mode || 'words'; // 'words' or 'expand_topic'
     const count = Math.min(Math.max(parseInt(body.count) || 20, 1), 200);
     const wordsPerChapter = Math.min(Math.max(parseInt(body.wordsPerChapter) || 15, 5), 30);
+    const numChapters = Math.min(Math.max(parseInt(body.numChapters) || 25, 5), 100);
+    const gridSize = Math.min(Math.max(parseInt(body.gridSize) || 15, 5), 50);
 
     if (!theme) {
       return NextResponse.json(
@@ -362,7 +430,7 @@ export async function POST(request: NextRequest) {
     // Handle topic expansion mode
     if (mode === 'expand_topic') {
       try {
-        const result = await expandTopic(theme, wordsPerChapter);
+        const result = await expandTopic(theme, wordsPerChapter, numChapters, gridSize);
         return NextResponse.json(result);
       } catch (error) {
         console.error('Topic expansion error:', error);
@@ -386,7 +454,10 @@ export async function POST(request: NextRequest) {
 
     // Try Groq word generation
     try {
-      const words = await generateWordsFromGroq(theme, count);
+      // Calculate max word length based on typical grid size (default 15x15 = max 13 letters)
+      const defaultGridSize = 15;
+      const maxWordLength = defaultGridSize - 2;
+      const words = await generateWordsFromGroq(theme, count, [], maxWordLength);
       
       if (words.length === 0) {
         console.warn(`Groq returned 0 words for theme: ${theme}`);
