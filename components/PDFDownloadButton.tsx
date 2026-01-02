@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import { PuzzleResult } from '@/lib/puzzle-generator';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { loadFontForPDF, getFontById } from '@/lib/fonts';
 
 interface PDFDownloadButtonProps {
   puzzles: Array<PuzzleResult & { chapterTitle?: string }>;
@@ -12,6 +13,8 @@ interface PDFDownloadButtonProps {
   includeBelongsToPage?: boolean;
   copyrightText?: string;
   answerKeyStyle?: 'boxes' | 'strikethrough';
+  fontId?: string;
+  fontSize?: number; // Base font size multiplier (1.0 = normal, 1.2 = 20% larger, etc.)
 }
 
 export default function PDFDownloadButton({
@@ -20,14 +23,49 @@ export default function PDFDownloadButton({
   includeTitlePage = false,
   includeBelongsToPage = false,
   copyrightText = '',
-  answerKeyStyle = 'boxes'
+  answerKeyStyle = 'boxes',
+  fontId,
+  fontSize = 1.0
 }: PDFDownloadButtonProps) {
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'in',
       format: 'letter'
     });
+    
+    // Load font if provided
+    let fontName: string | undefined;
+    if (fontId) {
+      console.log(`Loading font: ${fontId}`);
+      const loadedFontName = await loadFontForPDF(doc, fontId);
+      if (loadedFontName) {
+        fontName = loadedFontName;
+        console.log(`Font loaded successfully: ${fontName}`);
+      } else {
+        // Standard font was selected
+        const font = getFontById(fontId);
+        if (font && font.type === 'standard') {
+          fontName = font.id;
+          console.log(`Using standard font: ${fontName}`);
+        }
+      }
+    }
+    
+    // Helper to get font name for setFont calls
+    const getFont = (defaultFont: string = 'helvetica') => {
+      const finalFont = fontName || defaultFont;
+      // Only override if we have a custom font loaded (don't override courier for grid)
+      if (fontName && defaultFont !== 'courier') {
+        return fontName;
+      }
+      return defaultFont;
+    };
+    
+    // Helper to apply font size multiplier
+    const applyFontSize = (baseSize: number) => {
+      return baseSize * fontSize;
+    };
     
     const pageWidth = 8.5;
     const pageHeight = 11;
@@ -36,7 +74,7 @@ export default function PDFDownloadButton({
     
     // FRONT MATTER: Title Page
     if (includeTitlePage) {
-      drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight);
+      drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight, fontName, fontSize);
       currentPage++;
     }
     
@@ -45,7 +83,8 @@ export default function PDFDownloadButton({
       if (currentPage > 1) {
         doc.addPage();
       }
-      drawBelongsToPage(doc, pageWidth, pageHeight);
+      drawBelongsToPage(doc, pageWidth, pageHeight, fontName);
+      currentPage++;
       currentPage++;
     }
     
@@ -59,7 +98,7 @@ export default function PDFDownloadButton({
       }
       const pageNum = doc.internal.pages.length;
       puzzlePageNumbers.push(pageNum);
-      drawPuzzlePage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin, pageNum);
+      drawPuzzlePage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin, pageNum, fontName, fontSize);
       currentPage++;
     });
     
@@ -78,7 +117,7 @@ export default function PDFDownloadButton({
       const puzzlesOnPage = puzzles.slice(startIndex, endIndex);
       const pageNumbersOnPage = puzzlePageNumbers.slice(startIndex, endIndex);
       
-      drawSolutionsPage(doc, puzzlesOnPage, pageNumbersOnPage, startIndex, puzzles.length, title, pageWidth, pageHeight, margin, answerKeyStyle);
+      drawSolutionsPage(doc, puzzlesOnPage, pageNumbersOnPage, startIndex, puzzles.length, title, pageWidth, pageHeight, margin, answerKeyStyle, fontName, fontSize);
     }
     
     // Download
@@ -102,23 +141,33 @@ function drawTitlePage(
   title: string,
   copyrightText: string,
   pageWidth: number,
-  pageHeight: number
+  pageHeight: number,
+  fontName?: string,
+  fontSize: number = 1.0
 ) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  const applyFontSize = (baseSize: number) => baseSize * fontSize;
+  
   // Title
-  doc.setFontSize(32);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(applyFontSize(32));
+  doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text(title, pageWidth / 2, pageHeight / 2 - 1, { align: 'center' });
   
   // Subtitle
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(applyFontSize(18));
+  doc.setFont(getFont('helvetica'), 'normal');
   doc.text('Word Search Puzzle Book', pageWidth / 2, pageHeight / 2 + 0.3, { align: 'center' });
   
   // Copyright (if provided)
   if (copyrightText) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(applyFontSize(10));
+    doc.setFont(getFont('helvetica'), 'italic');
     const currentYear = new Date().getFullYear();
     doc.text(`© ${currentYear} ${copyrightText}`, pageWidth / 2, pageHeight - 1, { align: 'center' });
   }
@@ -127,17 +176,28 @@ function drawTitlePage(
 function drawBelongsToPage(
   doc: jsPDF,
   pageWidth: number,
-  pageHeight: number
+  pageHeight: number,
+  fontName?: string,
+  fontSize: number = 1.0
 ) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    // Only override if we have a custom font loaded (don't override courier for grid alignment)
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  const applyFontSize = (baseSize: number) => baseSize * fontSize;
+  
   // Title
-  doc.setFontSize(24);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(applyFontSize(24));
+  doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('This Book Belongs To', pageWidth / 2, pageHeight / 2 - 1, { align: 'center' });
   
   // Name line
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(applyFontSize(16));
+  doc.setFont(getFont('helvetica'), 'normal');
   const lineY = pageHeight / 2 + 0.5;
   const lineWidth = 4;
   const lineX = (pageWidth - lineWidth) / 2;
@@ -157,14 +217,25 @@ function drawPuzzlePage(
   pageWidth: number,
   pageHeight: number,
   margin: number,
-  pageNum: number
+  pageNum: number,
+  fontName?: string,
+  fontSize: number = 1.0
 ) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    // Only override if we have a custom font loaded (don't override courier for grid alignment)
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  const applyFontSize = (baseSize: number) => baseSize * fontSize;
+  
   const grid = puzzle.grid;
   const gridSize = grid.length;
   
   // Puzzle title - use chapter title if available
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(applyFontSize(16));
+  doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
   const puzzleTitle = puzzle.chapterTitle 
     ? `Puzzle #${puzzleNumber}: ${puzzle.chapterTitle}`
@@ -172,8 +243,8 @@ function drawPuzzlePage(
   doc.text(puzzleTitle, pageWidth / 2, margin + 0.3, { align: 'center' });
   
   // Instructions
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(applyFontSize(9));
+  doc.setFont(getFont('helvetica'), 'normal');
   doc.text(
     'Find the words listed below in the grid. Words may be horizontal, vertical, or diagonal.',
     pageWidth / 2,
@@ -202,10 +273,10 @@ function drawPuzzlePage(
   // Draw grid with thin borders
   doc.setLineWidth(0.001);
   doc.setDrawColor(0, 0, 0);
-  doc.setFont('courier', 'normal');
+  doc.setFont(getFont('courier'), 'normal');
   
-  const fontSize = Math.max(Math.min(cellSize * 11, 12), 7);
-  doc.setFontSize(fontSize);
+  const gridFontSize = Math.max(Math.min(cellSize * 11 * fontSize, 12), 7);
+  doc.setFontSize(gridFontSize);
   doc.setTextColor(0, 0, 0);
   
   for (let i = 0; i < gridSize; i++) {
@@ -228,12 +299,12 @@ function drawPuzzlePage(
   const words = puzzle.placedWords.map(w => w.word);
   const wordListStartY = startY + gridHeight + 0.2;
   
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(applyFontSize(10));
+  doc.setFont(getFont('helvetica'), 'bold');
   doc.text('Word List:', margin, wordListStartY);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+
+  doc.setFont(getFont('helvetica'), 'normal');
+  doc.setFontSize(applyFontSize(9));
   
   const wordsPerColumn = Math.ceil(words.length / 3);
   const columnWidth = (pageWidth - 2 * margin) / 3;
@@ -253,8 +324,8 @@ function drawPuzzlePage(
   }
   
   // Page number footer (dynamic)
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(applyFontSize(8));
+  doc.setFont(getFont('helvetica'), 'normal');
   doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.1, { align: 'center' });
 }
 
@@ -268,13 +339,23 @@ function drawSolutionsPage(
   pageWidth: number,
   pageHeight: number,
   margin: number,
-  answerKeyStyle: 'boxes' | 'strikethrough' = 'boxes'
+  answerKeyStyle: 'boxes' | 'strikethrough' = 'boxes',
+  fontName?: string,
+  fontSize: number = 1.0
 ) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    // Only override if we have a custom font loaded (don't override courier for grid alignment)
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  const applyFontSize = (baseSize: number) => baseSize * fontSize;
   const gridSize = puzzles[0]?.grid.length || 15;
   
   // Page title at the top
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(applyFontSize(18));
+  doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('Solutions', pageWidth / 2, margin + 0.3, { align: 'center' });
   
@@ -325,7 +406,7 @@ function drawSolutionsPage(
     
     // Puzzle number and page reference label (right above grid)
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(getFont('helvetica'), 'bold');
     doc.setTextColor(0, 0, 0);
     const puzzleNum = startIndex + index + 1;
     const originalPageNum = puzzlePageNumbers[index];
@@ -340,7 +421,7 @@ function drawSolutionsPage(
     // Draw grid with proper borders
     doc.setLineWidth(0.002);
     doc.setDrawColor(0, 0, 0);
-    doc.setFont('courier', 'normal');
+    doc.setFont(getFont('courier'), 'normal');
     
     // Calculate font size based on cell size (ensure readability)
     const fontSize = Math.max(Math.min(cellSize * 14, 11), 7);
@@ -407,8 +488,8 @@ function drawSolutionsPage(
   });
   
   // Page number footer
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(applyFontSize(9));
+  doc.setFont(getFont('helvetica'), 'normal');
   doc.setTextColor(0, 0, 0);
   const pageNum = doc.internal.pages.length - 1;
   doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.15, { align: 'center' });

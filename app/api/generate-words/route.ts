@@ -285,14 +285,13 @@ function parseSubThemes(responseText: string): string[] {
 }
 
 /**
- * Expand topic into sub-themes and generate words for each
+ * Expand topic into sub-themes (ONLY titles, no words)
+ * Word generation is handled on the client side to avoid timeouts
  */
-async function expandTopic(mainTheme: string, wordsPerChapter: number, numChapters: number = 25, gridSize: number = 15): Promise<{
+async function expandTopic(mainTheme: string, numChapters: number = 25): Promise<{
   bookTitle: string;
   chapters: Array<{ title: string; words: string[] }>;
 }> {
-  // Calculate max word length based on grid size (leave 2 cells margin)
-  const maxWordLength = Math.max(4, gridSize - 2);
   if (!GROQ_API_KEY) {
     throw new Error('GROQ_API_KEY environment variable is not set');
   }
@@ -301,7 +300,7 @@ async function expandTopic(mainTheme: string, wordsPerChapter: number, numChapte
     apiKey: GROQ_API_KEY,
   });
 
-  // Step 1: Generate sub-themes
+  // Generate sub-themes only
   const targetCount = Math.min(Math.max(numChapters, 5), 100); // Clamp between 5-100
   const subThemePrompt = `Generate exactly ${targetCount} distinct sub-themes or chapters related to "${mainTheme}".
 
@@ -323,12 +322,14 @@ Warm Clothing
 Generate sub-themes now:`;
 
   try {
-    const subThemeCompletion = await groq.chat.completions.create({
-      messages: [{ role: 'user', content: subThemePrompt }],
-      model: GROQ_MODEL,
-      temperature: 0.8,
-      max_tokens: 1000,
-    });
+    const subThemeCompletion = await rateLimitedApiCall(() =>
+      groq.chat.completions.create({
+        messages: [{ role: 'user', content: subThemePrompt }],
+        model: GROQ_MODEL,
+        temperature: 0.8,
+        max_tokens: 1000,
+      })
+    );
 
     const subThemeText = subThemeCompletion.choices[0]?.message?.content || '';
     const subThemes = parseSubThemes(subThemeText).slice(0, targetCount); // Limit to requested count
@@ -337,66 +338,11 @@ Generate sub-themes now:`;
       throw new Error('No sub-themes generated');
     }
 
-    // Step 2: Generate words for each sub-theme using rate-limited batching
-    const chapters: Array<{ title: string; words: string[] }> = [];
-    const allSeenWords = new Set<string>();
-    
-    const BATCH_SIZE = 3;
-    const INTER_BATCH_DELAY = 2000; // 2 seconds
-    
-    // Process sub-themes in batches
-    for (let i = 0; i < subThemes.length; i += BATCH_SIZE) {
-      const batch = subThemes.slice(i, i + BATCH_SIZE);
-      
-      // Process batch in parallel
-      const batchPromises = batch.map(async (subTheme) => {
-        try {
-          const words = await generateWordsFromGroq(subTheme, wordsPerChapter, Array.from(allSeenWords), maxWordLength);
-          
-          // Filter out duplicates and words that don't fit - STRICT validation
-          const uniqueWords = words
-            .map(word => word.toUpperCase().trim())
-            .filter(upperWord => {
-              // Ensure word fits in grid and is valid
-              if (upperWord.length > maxWordLength || upperWord.length < 4 || !/^[A-Z]+$/.test(upperWord)) {
-                console.warn(`Filtering out word "${upperWord}" (length: ${upperWord.length}, max: ${maxWordLength})`);
-                return false;
-              }
-              if (!allSeenWords.has(upperWord)) {
-                allSeenWords.add(upperWord);
-                return true;
-              }
-              return false;
-            });
-
-          if (uniqueWords.length > 0) {
-            return {
-              title: subTheme,
-              words: uniqueWords,
-            };
-          }
-          return null;
-        } catch (error) {
-          console.error(`Error generating words for sub-theme "${subTheme}":`, error);
-          return null;
-        }
-      });
-      
-      // Wait for all requests in batch to complete
-      const batchResults = await Promise.all(batchPromises);
-      
-      // Add successful chapters
-      for (const result of batchResults) {
-        if (result) {
-          chapters.push(result);
-        }
-      }
-      
-      // Add delay between batches (except after the last batch)
-      if (i + BATCH_SIZE < subThemes.length) {
-        await new Promise(resolve => setTimeout(resolve, INTER_BATCH_DELAY));
-      }
-    }
+    // Return chapters with empty word arrays - words will be generated on client side
+    const chapters = subThemes.map(title => ({
+      title,
+      words: [] as string[]
+    }));
 
     return {
       bookTitle: mainTheme,
@@ -430,7 +376,7 @@ export async function POST(request: NextRequest) {
     // Handle topic expansion mode
     if (mode === 'expand_topic') {
       try {
-        const result = await expandTopic(theme, wordsPerChapter, numChapters, gridSize);
+        const result = await expandTopic(theme, numChapters);
         return NextResponse.json(result);
       } catch (error) {
         console.error('Topic expansion error:', error);

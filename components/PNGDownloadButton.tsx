@@ -46,17 +46,73 @@ export default function PNGDownloadButton({
       
       console.log(`Capturing element: ${width}x${height}px (rect: ${rect.width}x${rect.height})`);
 
-      // Temporarily ensure element is visible and has proper dimensions
-      const originalOverflow = (element as HTMLElement).style.overflow;
+      // Inject a temporary style tag to override CSS variables with hex colors
+      // This prevents html2canvas from trying to parse oklch()/lab() color functions
+      const tempStyleId = 'png-export-temp-styles';
+      let tempStyle = document.getElementById(tempStyleId) as HTMLStyleElement;
+      
+      if (!tempStyle) {
+        tempStyle = document.createElement('style');
+        tempStyle.id = tempStyleId;
+        document.head.appendChild(tempStyle);
+      }
+      
+      // Override all CSS variables that use color functions with hex equivalents
+      tempStyle.textContent = `
+        :root, .dark {
+          --background: #ffffff !important;
+          --foreground: #000000 !important;
+          --card: #ffffff !important;
+          --card-foreground: #000000 !important;
+          --popover: #ffffff !important;
+          --popover-foreground: #000000 !important;
+          --primary: #000000 !important;
+          --primary-foreground: #ffffff !important;
+          --secondary: #f5f5f5 !important;
+          --secondary-foreground: #000000 !important;
+          --muted: #f5f5f5 !important;
+          --muted-foreground: #666666 !important;
+          --accent: #f5f5f5 !important;
+          --accent-foreground: #000000 !important;
+          --destructive: #dc2626 !important;
+          --border: #e5e5e5 !important;
+          --input: #e5e5e5 !important;
+          --ring: #999999 !important;
+        }
+        #${targetId}, #${targetId} * {
+          background-color: #ffffff !important;
+          color: #000000 !important;
+        }
+        #${targetId} .bg-slate-800,
+        #${targetId} .bg-slate-900,
+        #${targetId} .bg-slate-700 {
+          background-color: #1e293b !important;
+        }
+        #${targetId} .text-slate-300,
+        #${targetId} .text-slate-200,
+        #${targetId} .text-slate-100 {
+          color: #cbd5e1 !important;
+        }
+        #${targetId} .bg-blue-500,
+        #${targetId} .bg-green-500,
+        #${targetId} .bg-yellow-500,
+        #${targetId} .bg-red-500 {
+          /* Preserve colored highlights for puzzle cells */
+        }
+      `;
+      
+      // Set explicit white background
       const originalBg = (element as HTMLElement).style.backgroundColor;
+      (element as HTMLElement).style.backgroundColor = '#ffffff';
       (element as HTMLElement).style.overflow = 'visible';
-      (element as HTMLElement).style.backgroundColor = '#ffffff'; // Use hex color instead of CSS functions
+      
+      // Wait a moment for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Configure html2canvas for high-resolution export
-      // Use white background to avoid color parsing issues, then make transparent in post-processing
       const canvas = await html2canvas(element, {
         scale: 4, // 4x scale for 300 DPI print quality
-        backgroundColor: '#ffffff', // Use hex color (html2canvas doesn't support lab() colors)
+        backgroundColor: '#ffffff', // Use hex color (html2canvas doesn't support lab()/oklch() colors)
         useCORS: true,
         logging: false,
         allowTaint: false,
@@ -68,20 +124,16 @@ export default function PNGDownloadButton({
         y: 0,
         scrollX: 0,
         scrollY: 0,
-        ignoreElements: (el) => {
-          // Ignore elements that might cause color parsing issues
-          return false;
-        },
       });
-      
-      // If we want transparent background, we need to process the canvas
-      // For now, we'll use white background which works better with html2canvas
       
       console.log(`Canvas created: ${canvas.width}x${canvas.height}px`);
 
-      // Restore original styles
-      (element as HTMLElement).style.overflow = originalOverflow;
-      (element as HTMLElement).style.backgroundColor = originalBg;
+      // Remove temporary style and restore original background
+      if (tempStyle && tempStyle.parentNode) {
+        tempStyle.parentNode.removeChild(tempStyle);
+      }
+      (element as HTMLElement).style.backgroundColor = originalBg || '';
+      (element as HTMLElement).style.overflow = '';
 
       // Convert canvas to blob and download
       canvas.toBlob((blob) => {

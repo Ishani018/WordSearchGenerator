@@ -7,6 +7,7 @@ import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
 import PDFDownloadButton from '@/components/PDFDownloadButton';
 import { Button } from '@/components/ui/button';
+import { AVAILABLE_FONTS } from '@/lib/fonts';
 
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -55,33 +56,18 @@ export default function Home() {
   const [includeBelongsToPage, setIncludeBelongsToPage] = useState(false);
   const [copyrightText, setCopyrightText] = useState('');
   const [answerKeyStyle, setAnswerKeyStyle] = useState<'boxes' | 'strikethrough'>('boxes');
+  const [selectedFont, setSelectedFont] = useState('helvetica');
+  const [fontSize, setFontSize] = useState(1.0); // Font size multiplier (1.0 = 100%, 1.2 = 120%, etc.)
 
-  // Generate book structure (topic expansion)
+  // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
     if (!theme.trim()) return;
     
     setIsGeneratingStructure(true);
     setStructureProgress({ current: 0, total: 100, status: 'Generating sub-themes...' });
     
-    // Simulate progress updates while waiting for API
-    let progressInterval: NodeJS.Timeout | null = null;
-    const startProgress = () => {
-      let current = 0;
-      progressInterval = setInterval(() => {
-        current += 2;
-        if (current <= 80) { // Cap at 80% until we get real data
-          setStructureProgress(prev => ({
-            ...prev,
-            current,
-            status: `Generating sub-themes... ${current}%`
-          }));
-        }
-      }, 200) as NodeJS.Timeout;
-    };
-    
-    startProgress();
-    
     try {
+      // Step 1: Get chapter titles only (no words)
       const response = await fetch('/api/generate-words', {
         method: 'POST',
         headers: {
@@ -90,9 +76,7 @@ export default function Home() {
         body: JSON.stringify({
           theme: theme.trim(),
           mode: 'expand_topic',
-          wordsPerChapter: wordsPerPuzzle,
           numChapters: numChapters,
-          gridSize: gridSize, // Pass grid size so words fit
         }),
       });
 
@@ -103,22 +87,94 @@ export default function Home() {
 
       const data = await response.json();
       
-      // Clear progress interval
-      if (progressInterval) clearInterval(progressInterval);
-      
-      // Update with real data
-      if (data.chapters && data.chapters.length > 0) {
-        setStructureProgress({ 
-          current: 100, 
-          total: 100, 
-          status: `Generated ${data.chapters.length} chapters` 
-        });
-      }
-      
+      // Step 2: Update bookStructure immediately with empty chapters
       setBookStructure(data);
       setBookPuzzles([]);
+      
+      // Step 3: Generate words for each chapter on client side
+      const maxWordLength = gridSize - 2;
+      const totalChapters = data.chapters.length;
+      
+      setStructureProgress({ 
+        current: 0, 
+        total: totalChapters, 
+        status: `Generating words for Chapter 1 of ${totalChapters}...` 
+      });
+      
+      const allSeenWords = new Set<string>();
+      const updatedChapters = [...data.chapters];
+      
+      // Loop through each chapter and generate words
+      for (let chapterIndex = 0; chapterIndex < totalChapters; chapterIndex++) {
+        const chapter = updatedChapters[chapterIndex];
+        
+        setStructureProgress({ 
+          current: chapterIndex, 
+          total: totalChapters, 
+          status: `Generating words for Chapter ${chapterIndex + 1} of ${totalChapters}...` 
+        });
+        
+        try {
+          // Generate words for this specific chapter
+          const wordsResponse = await fetch('/api/generate-words', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              theme: chapter.title,
+              count: wordsPerPuzzle * 2, // Request more than needed for variety
+              mode: 'words',
+              maxWordLength: maxWordLength,
+            }),
+          });
+          
+          if (wordsResponse.ok) {
+            const wordsData = await wordsResponse.json();
+            const words = (wordsData.words || [])
+              .map((w: string) => w.toUpperCase().trim())
+              .filter((w: string) => {
+                const upperWord = w;
+                return upperWord.length >= 4 && 
+                       upperWord.length <= maxWordLength && 
+                       /^[A-Z]+$/.test(upperWord) &&
+                       !allSeenWords.has(upperWord);
+              });
+            
+            // Add unique words to seen set
+            words.forEach((w: string) => allSeenWords.add(w));
+            
+            // Update this chapter's words
+            updatedChapters[chapterIndex] = {
+              ...chapter,
+              words: words.slice(0, wordsPerPuzzle)
+            };
+            
+            // Update bookStructure state so user sees progress
+            setBookStructure({
+              ...data,
+              chapters: updatedChapters
+            });
+          }
+        } catch (error) {
+          console.error(`Error generating words for chapter "${chapter.title}":`, error);
+          // Continue with other chapters even if one fails
+        }
+        
+        // Small delay between chapters to avoid rate limiting
+        if (chapterIndex < totalChapters - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      // Final update
+      setStructureProgress({ 
+        current: totalChapters, 
+        total: totalChapters, 
+        status: `Generated ${totalChapters} chapters with words` 
+      });
+      
     } catch (error) {
-      if (progressInterval) clearInterval(progressInterval);
       console.error('Error generating structure:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate book structure';
       alert(`❌ ${errorMessage}\n\nMake sure GROQ_API_KEY is set in your environment variables.`);
@@ -129,7 +185,7 @@ export default function Home() {
         setTimeout(() => setStructureProgress({ current: 0, total: 0, status: '' }), 2000);
       }, 500);
     }
-  }, [theme, wordsPerPuzzle]);
+  }, [theme, wordsPerPuzzle, numChapters, gridSize]);
 
   // Generate words from theme (for single puzzle mode)
   const handleGenerateWords = useCallback(async () => {
@@ -342,7 +398,7 @@ export default function Home() {
     : puzzle;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
@@ -744,6 +800,72 @@ export default function Home() {
                       <option value="strikethrough">Strikethrough Lines</option>
                     </select>
                   </div>
+                  
+                  {/* Font Selection */}
+                  <div className="mt-3">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Font
+                    </label>
+                    <select
+                      value={selectedFont}
+                      onChange={(e) => setSelectedFont(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {AVAILABLE_FONTS.map((font) => {
+                        // Get font family name for preview
+                        let fontFamily = 'inherit';
+                        if (font.type === 'standard') {
+                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
+                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
+                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
+                        } else if (font.type === 'google') {
+                          // Map font IDs to Google Font names
+                          const fontMap: { [key: string]: string } = {
+                            'roboto': 'Roboto, sans-serif',
+                            'roboto-bold': 'Roboto, sans-serif',
+                            'open-sans': '"Open Sans", sans-serif',
+                            'open-sans-bold': '"Open Sans", sans-serif',
+                            'lora': 'Lora, serif',
+                            'lora-bold': 'Lora, serif',
+                            'playfair-display': '"Playfair Display", serif',
+                            'playfair-display-bold': '"Playfair Display", serif',
+                          };
+                          fontFamily = fontMap[font.id] || 'inherit';
+                        }
+                        
+                        return (
+                          <option
+                            key={font.id}
+                            value={font.id}
+                            style={{ fontFamily }}
+                          >
+                            {font.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  
+                  {/* Font Size */}
+                  <div className="mt-3">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Font Size ({Math.round(fontSize * 100)}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0.7"
+                      max="1.5"
+                      step="0.05"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>70%</span>
+                      <span>100%</span>
+                      <span>150%</span>
+                    </div>
+                  </div>
                 </div>
                 
                 <PDFDownloadButton
@@ -753,6 +875,8 @@ export default function Home() {
                   includeBelongsToPage={includeBelongsToPage}
                   copyrightText={copyrightText}
                   answerKeyStyle={answerKeyStyle}
+                  fontId={selectedFont}
+                  fontSize={fontSize}
                 />
               </>
             )}
@@ -770,11 +894,78 @@ export default function Home() {
                     <option value="boxes">Boxes (Outline)</option>
                     <option value="strikethrough">Strikethrough Lines</option>
                   </select>
+                  
+                  <div className="mt-3">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Font
+                    </label>
+                    <select
+                      value={selectedFont}
+                      onChange={(e) => setSelectedFont(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {AVAILABLE_FONTS.map((font) => {
+                        // Get font family name for preview
+                        let fontFamily = 'inherit';
+                        if (font.type === 'standard') {
+                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
+                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
+                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
+                        } else if (font.type === 'google') {
+                          // Map font IDs to Google Font names
+                          const fontMap: { [key: string]: string } = {
+                            'roboto': 'Roboto, sans-serif',
+                            'roboto-bold': 'Roboto, sans-serif',
+                            'open-sans': '"Open Sans", sans-serif',
+                            'open-sans-bold': '"Open Sans", sans-serif',
+                            'lora': 'Lora, serif',
+                            'lora-bold': 'Lora, serif',
+                            'playfair-display': '"Playfair Display", serif',
+                            'playfair-display-bold': '"Playfair Display", serif',
+                          };
+                          fontFamily = fontMap[font.id] || 'inherit';
+                        }
+                        
+                        return (
+                          <option
+                            key={font.id}
+                            value={font.id}
+                            style={{ fontFamily }}
+                          >
+                            {font.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  
+                  {/* Font Size */}
+                  <div className="mt-3">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Font Size ({Math.round(fontSize * 100)}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0.7"
+                      max="1.5"
+                      step="0.05"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>70%</span>
+                      <span>100%</span>
+                      <span>150%</span>
+                    </div>
+                  </div>
                 </div>
                 <PDFDownloadButton
                   puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
                   title={`Word Search - ${theme || 'Puzzle'}`}
                   answerKeyStyle={answerKeyStyle}
+                  fontId={selectedFont}
+                  fontSize={fontSize}
                 />
               </>
             )}
