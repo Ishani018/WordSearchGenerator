@@ -6,15 +6,134 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loadFontForPDF, getFontById } from '@/lib/fonts';
 
-interface PDFDownloadButtonProps {
+export type PageSize = 'Letter' | 'A4' | '6x9' | '8x10';
+
+export interface PDFDownloadButtonProps {
   puzzles: Array<PuzzleResult & { chapterTitle?: string }>;
   title: string;
   includeTitlePage?: boolean;
   includeBelongsToPage?: boolean;
   copyrightText?: string;
-  answerKeyStyle?: 'boxes' | 'strikethrough';
   fontId?: string;
   fontSize?: number; // Base font size multiplier (1.0 = normal, 1.2 = 20% larger, etc.)
+  pageSize?: PageSize; // Page size option
+}
+
+// Page size configuration
+const PAGE_SIZES = {
+  'Letter': { width: 8.5, height: 11, format: 'letter' },
+  'A4': { width: 8.27, height: 11.69, format: 'a4' },
+  '6x9': { width: 6, height: 9, format: [6, 9] as [number, number] },
+  '8x10': { width: 8, height: 10, format: [8, 10] as [number, number] }
+};
+
+// Export reusable PDF generation function
+export async function generatePDFDoc({
+  puzzles,
+  title,
+  includeTitlePage = false,
+  includeBelongsToPage = false,
+  copyrightText = '',
+  fontId,
+  fontSize = 1.0,
+  pageSize = 'Letter'
+}: PDFDownloadButtonProps): Promise<jsPDF> {
+  // Get page size configuration (default to Letter)
+  const pageConfig = PAGE_SIZES[pageSize] || PAGE_SIZES['Letter'];
+  
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'in',
+    format: pageConfig.format
+  });
+  
+  // Load font if provided
+  let fontName: string | undefined;
+  if (fontId) {
+    console.log(`Loading font: ${fontId}`);
+    const loadedFontName = await loadFontForPDF(doc, fontId);
+    if (loadedFontName) {
+      fontName = loadedFontName;
+      console.log(`Font loaded successfully: ${fontName}`);
+    } else {
+      // Standard font was selected
+      const font = getFontById(fontId);
+      if (font && font.type === 'standard') {
+        fontName = font.id;
+        console.log(`Using standard font: ${fontName}`);
+      }
+    }
+  }
+  
+  // Helper to get font name for setFont calls
+  const getFont = (defaultFont: string = 'helvetica') => {
+    const finalFont = fontName || defaultFont;
+    // Only override if we have a custom font loaded (don't override courier for grid)
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  
+  // Helper to apply font size multiplier
+  const applyFontSize = (baseSize: number) => {
+    return baseSize * fontSize;
+  };
+  
+  const pageWidth = pageConfig.width;
+  const pageHeight = pageConfig.height;
+  const margin = 0.5;
+  let currentPage = 1;
+  
+  // FRONT MATTER: Title Page
+  if (includeTitlePage) {
+    drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight, fontName, fontSize);
+    currentPage++;
+  }
+  
+  // FRONT MATTER: "This Book Belongs To" Page
+  if (includeBelongsToPage) {
+    if (currentPage > 1) {
+      doc.addPage();
+    }
+    drawBelongsToPage(doc, pageWidth, pageHeight, fontName);
+    currentPage++;
+    currentPage++;
+  }
+  
+  // Track puzzle page numbers for solutions reference
+  const puzzlePageNumbers: number[] = [];
+  
+  // SECTION 1: All puzzle pages (unsolved)
+  puzzles.forEach((puzzle, index) => {
+    if (currentPage > 1 || index > 0) {
+      doc.addPage();
+    }
+    const pageNum = doc.internal.pages.length;
+    puzzlePageNumbers.push(pageNum);
+    drawPuzzlePage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin, pageNum, fontName, fontSize);
+    currentPage++;
+  });
+  
+  // SECTION 2: Solutions section - Always start on a new page
+  // Group 2 grids per page
+  const puzzlesPerPage = 2;
+  const totalSolutionPages = Math.ceil(puzzles.length / puzzlesPerPage);
+  
+  for (let pageIndex = 0; pageIndex < totalSolutionPages; pageIndex++) {
+    // Always add a new page for each solution page (including the first one)
+    doc.addPage();
+    currentPage++;
+    
+    const startIndex = pageIndex * puzzlesPerPage;
+    const endIndex = Math.min(startIndex + puzzlesPerPage, puzzles.length);
+    const puzzlesOnPage = puzzles.slice(startIndex, endIndex);
+    const pageNumbersOnPage = puzzlePageNumbers.slice(startIndex, endIndex);
+    
+    drawSolutionsPage(doc, puzzlesOnPage, pageNumbersOnPage, startIndex, puzzles.length, title, pageWidth, pageHeight, margin, fontName, fontSize);
+  }
+  
+  return doc;
 }
 
 export default function PDFDownloadButton({
@@ -23,110 +142,27 @@ export default function PDFDownloadButton({
   includeTitlePage = false,
   includeBelongsToPage = false,
   copyrightText = '',
-  answerKeyStyle = 'boxes',
   fontId,
-  fontSize = 1.0
+  fontSize = 1.0,
+  pageSize = 'Letter'
 }: PDFDownloadButtonProps) {
-  const generatePDF = async () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'in',
-      format: 'letter'
+  const handleDownload = async () => {
+    const doc = await generatePDFDoc({
+      puzzles,
+      title,
+      includeTitlePage,
+      includeBelongsToPage,
+      copyrightText,
+      fontId,
+      fontSize,
+      pageSize
     });
-    
-    // Load font if provided
-    let fontName: string | undefined;
-    if (fontId) {
-      console.log(`Loading font: ${fontId}`);
-      const loadedFontName = await loadFontForPDF(doc, fontId);
-      if (loadedFontName) {
-        fontName = loadedFontName;
-        console.log(`Font loaded successfully: ${fontName}`);
-      } else {
-        // Standard font was selected
-        const font = getFontById(fontId);
-        if (font && font.type === 'standard') {
-          fontName = font.id;
-          console.log(`Using standard font: ${fontName}`);
-        }
-      }
-    }
-    
-    // Helper to get font name for setFont calls
-    const getFont = (defaultFont: string = 'helvetica') => {
-      const finalFont = fontName || defaultFont;
-      // Only override if we have a custom font loaded (don't override courier for grid)
-      if (fontName && defaultFont !== 'courier') {
-        return fontName;
-      }
-      return defaultFont;
-    };
-    
-    // Helper to apply font size multiplier
-    const applyFontSize = (baseSize: number) => {
-      return baseSize * fontSize;
-    };
-    
-    const pageWidth = 8.5;
-    const pageHeight = 11;
-    const margin = 0.5;
-    let currentPage = 1;
-    
-    // FRONT MATTER: Title Page
-    if (includeTitlePage) {
-      drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight, fontName, fontSize);
-      currentPage++;
-    }
-    
-    // FRONT MATTER: "This Book Belongs To" Page
-    if (includeBelongsToPage) {
-      if (currentPage > 1) {
-        doc.addPage();
-      }
-      drawBelongsToPage(doc, pageWidth, pageHeight, fontName);
-      currentPage++;
-      currentPage++;
-    }
-    
-    // Track puzzle page numbers for solutions reference
-    const puzzlePageNumbers: number[] = [];
-    
-    // SECTION 1: All puzzle pages (unsolved)
-    puzzles.forEach((puzzle, index) => {
-      if (currentPage > 1 || index > 0) {
-        doc.addPage();
-      }
-      const pageNum = doc.internal.pages.length;
-      puzzlePageNumbers.push(pageNum);
-      drawPuzzlePage(doc, puzzle, index + 1, puzzles.length, title, pageWidth, pageHeight, margin, pageNum, fontName, fontSize);
-      currentPage++;
-    });
-    
-    // SECTION 2: Solutions section - Always start on a new page
-    // Group 2 grids per page
-    const puzzlesPerPage = 2;
-    const totalSolutionPages = Math.ceil(puzzles.length / puzzlesPerPage);
-    
-    for (let pageIndex = 0; pageIndex < totalSolutionPages; pageIndex++) {
-      // Always add a new page for each solution page (including the first one)
-      doc.addPage();
-      currentPage++;
-      
-      const startIndex = pageIndex * puzzlesPerPage;
-      const endIndex = Math.min(startIndex + puzzlesPerPage, puzzles.length);
-      const puzzlesOnPage = puzzles.slice(startIndex, endIndex);
-      const pageNumbersOnPage = puzzlePageNumbers.slice(startIndex, endIndex);
-      
-      drawSolutionsPage(doc, puzzlesOnPage, pageNumbersOnPage, startIndex, puzzles.length, title, pageWidth, pageHeight, margin, answerKeyStyle, fontName, fontSize);
-    }
-    
-    // Download
     doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
   };
   
   return (
     <Button
-      onClick={generatePDF}
+      onClick={handleDownload}
       className="w-full bg-blue-600 hover:bg-blue-700 text-white"
       size="lg"
     >
@@ -252,22 +288,41 @@ function drawPuzzlePage(
     { align: 'center' }
   );
   
-  // Calculate available space
+  // Calculate available space - ensure we have enough room for word list and footer
   const titleSpace = 0.8;
-  const wordListSpace = 1.5;
-  const footerSpace = 0.3;
+  const wordListSpace = 1.5; // Reserve space for word list
+  const footerSpace = 0.3; // Reserve space for page number
   const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace - footerSpace;
   const availableWidth = pageWidth - margin * 2;
   
-  // Calculate cell size
+  // Calculate cell size - ensure grid fits within available space
+  // Use Math.min to ensure grid never exceeds available dimensions
   const cellSize = Math.min(
     availableWidth / gridSize,
     availableHeight / gridSize
   );
   
-  const gridWidth = gridSize * cellSize;
-  const gridHeight = gridSize * cellSize;
-  const startX = (pageWidth - gridWidth) / 2;
+  // Ensure cell size is positive and reasonable (minimum 0.1 inches)
+  const finalCellSize = Math.max(cellSize, 0.1);
+  
+  const gridWidth = gridSize * finalCellSize;
+  const gridHeight = gridSize * finalCellSize;
+  
+  // Ensure grid doesn't exceed page boundaries - apply additional scaling if needed
+  const maxGridWidth = availableWidth;
+  const maxGridHeight = availableHeight;
+  
+  // If grid is too large, scale it down further
+  const scaleX = gridWidth > maxGridWidth ? maxGridWidth / gridWidth : 1;
+  const scaleY = gridHeight > maxGridHeight ? maxGridHeight / gridHeight : 1;
+  const scale = Math.min(scaleX, scaleY);
+  
+  const scaledGridWidth = gridWidth * scale;
+  const scaledGridHeight = gridHeight * scale;
+  const scaledCellSize = finalCellSize * scale;
+  
+  // Center the grid horizontally
+  const startX = (pageWidth - scaledGridWidth) / 2;
   const startY = margin + titleSpace;
   
   // Draw grid with thin borders
@@ -275,55 +330,87 @@ function drawPuzzlePage(
   doc.setDrawColor(0, 0, 0);
   doc.setFont(getFont('courier'), 'normal');
   
-  const gridFontSize = Math.max(Math.min(cellSize * 11 * fontSize, 12), 7);
+  const gridFontSize = Math.max(Math.min(scaledCellSize * 11 * fontSize, 12), 7);
   doc.setFontSize(gridFontSize);
   doc.setTextColor(0, 0, 0);
   
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
-      const x = startX + j * cellSize;
-      const y = startY + i * cellSize;
+      const x = startX + j * scaledCellSize;
+      const y = startY + i * scaledCellSize;
       
-      doc.rect(x, y, cellSize, cellSize);
-      
-      const letter = grid[i][j];
-      const textWidth = doc.getTextWidth(letter);
-      const textX = x + (cellSize - textWidth) / 2;
-      const textY = y + cellSize * 0.7;
-      
-      doc.text(letter, textX, textY);
+      // Ensure we don't draw outside page boundaries
+      if (x >= margin && x + scaledCellSize <= pageWidth - margin && 
+          y >= margin && y + scaledCellSize <= pageHeight - margin - wordListSpace - footerSpace) {
+        doc.rect(x, y, scaledCellSize, scaledCellSize);
+        
+        const letter = grid[i][j];
+        const textWidth = doc.getTextWidth(letter);
+        const textX = x + (scaledCellSize - textWidth) / 2;
+        const textY = y + scaledCellSize * 0.7;
+        
+        doc.text(letter, textX, textY);
+      }
     }
   }
   
-  // Word list below the grid
+  // Word list below the grid - ensure it doesn't overlap with grid
   const words = puzzle.placedWords.map(w => w.word);
-  const wordListStartY = startY + gridHeight + 0.2;
+  const wordListStartY = startY + scaledGridHeight + 0.2;
+  
+  // Ensure word list doesn't go below footer area
+  const maxWordListY = pageHeight - margin - footerSpace - 0.3;
+  
+  // Calculate remaining vertical space for word list
+  const remainingSpace = maxWordListY - wordListStartY;
   
   doc.setFontSize(applyFontSize(10));
   doc.setFont(getFont('helvetica'), 'bold');
   doc.text('Word List:', margin, wordListStartY);
 
   doc.setFont(getFont('helvetica'), 'normal');
-  doc.setFontSize(applyFontSize(9));
   
-  const wordsPerColumn = Math.ceil(words.length / 3);
-  const columnWidth = (pageWidth - 2 * margin) / 3;
+  // Calculate word list layout - ensure it fits
+  let wordListFontSize = applyFontSize(9);
   const lineSpacing = 0.18;
+  let numColumns = 3;
+  let wordsPerColumn = Math.ceil(words.length / numColumns);
+  let estimatedWordListHeight = wordsPerColumn * lineSpacing + 0.2;
   
-  for (let col = 0; col < 3; col++) {
+  // If word list doesn't fit, try reducing font size or increasing columns
+  if (estimatedWordListHeight > remainingSpace) {
+    // Try 4 columns first (saves vertical space)
+    numColumns = 4;
+    wordsPerColumn = Math.ceil(words.length / numColumns);
+    estimatedWordListHeight = wordsPerColumn * lineSpacing + 0.2;
+    
+    // If still doesn't fit, reduce font size
+    if (estimatedWordListHeight > remainingSpace) {
+      const requiredReduction = remainingSpace / estimatedWordListHeight;
+      wordListFontSize = Math.max(applyFontSize(9) * requiredReduction, applyFontSize(7));
+      // Recalculate with smaller font (line spacing might be slightly less)
+      estimatedWordListHeight = wordsPerColumn * (lineSpacing * 0.9) + 0.2;
+    }
+  }
+  
+  doc.setFontSize(wordListFontSize);
+  const columnWidth = (pageWidth - 2 * margin) / numColumns;
+  
+  // Draw word list - ensure it doesn't exceed available space
+  for (let col = 0; col < numColumns; col++) {
     const xPos = margin + col * columnWidth;
     let currentY = wordListStartY + 0.2;
     
     for (let i = 0; i < wordsPerColumn; i++) {
       const idx = col * wordsPerColumn + i;
-      if (idx < words.length) {
+      if (idx < words.length && currentY < maxWordListY) {
         doc.text(words[idx], xPos, currentY);
-        currentY += lineSpacing;
+        currentY += lineSpacing * 0.9; // Slightly tighter spacing
       }
     }
   }
   
-  // Page number footer (dynamic)
+  // Page number footer (always at bottom margin, never overwritten)
   doc.setFontSize(applyFontSize(8));
   doc.setFont(getFont('helvetica'), 'normal');
   doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.1, { align: 'center' });
@@ -339,7 +426,6 @@ function drawSolutionsPage(
   pageWidth: number,
   pageHeight: number,
   margin: number,
-  answerKeyStyle: 'boxes' | 'strikethrough' = 'boxes',
   fontName?: string,
   fontSize: number = 1.0
 ) {
@@ -418,17 +504,71 @@ function drawSolutionsPage(
     const labelY = gridY - 0.15; // Small gap above grid
     doc.text(label, labelX, labelY, { align: 'center' });
     
-    // Draw grid with proper borders
+    // STEP 1: Draw solution lines FIRST (behind the grid)
+    // This ensures letters are visible on top of the lines
+    puzzle.placedWords.forEach(({ positions, word }) => {
+      // Only process valid words with at least 2 positions
+      if (!positions || positions.length < 2) return;
+      
+      // Calculate center coordinates of start and end cells
+      const [startRow, startCol] = positions[0];
+      const [endRow, endCol] = positions[positions.length - 1];
+      
+      const startX = gridX + startCol * cellSize + cellSize / 2;
+      const startY = gridY + startRow * cellSize + cellSize / 2;
+      const endX = gridX + endCol * cellSize + cellSize / 2;
+      const endY = gridY + endRow * cellSize + cellSize / 2;
+      
+      // Enable transparency (35% opacity)
+      // For stroke operations, we need to use CA (stroke alpha) in the graphics state
+      // CA controls the transparency of strokes (lines), opacity controls fills
+      let transparentGState;
+      try {
+        // Try using CA (stroke alpha) for line transparency
+        transparentGState = (doc as any).createGState({ CA: 0.35, opacity: 0.35 });
+        doc.setGState(transparentGState);
+      } catch (err) {
+        // Fallback: try just opacity
+        try {
+          transparentGState = (doc as any).createGState({ opacity: 0.35 });
+          doc.setGState(transparentGState);
+        } catch (err2) {
+          console.warn('Could not set transparency, drawing opaque line');
+        }
+      }
+      
+      // Draw black outline first (slightly thicker)
+      doc.setDrawColor(0, 0, 0); // Black
+      doc.setLineWidth(cellSize * 0.95); // Slightly thicker for outline
+      doc.setLineCap('round'); // Rounded ends
+      doc.line(startX, startY, endX, endY);
+      
+      // Draw red line on top (slightly thinner to show black outline)
+      doc.setDrawColor(255, 0, 0); // Red
+      doc.setLineWidth(cellSize * 0.85); // Thick enough to cover the letter
+      doc.setLineCap('round'); // Rounded ends
+      doc.line(startX, startY, endX, endY);
+      
+      // Reset transparency to full opacity for the rest of the document
+      try {
+        const opaqueGState = (doc as any).createGState({ CA: 1.0, opacity: 1.0 });
+        doc.setGState(opaqueGState);
+      } catch (err) {
+        // If reset fails, that's okay - next drawing will override
+      }
+    });
+    
+    // STEP 2: Draw grid and letters ON TOP of the solution lines
     doc.setLineWidth(0.002);
     doc.setDrawColor(0, 0, 0);
     doc.setFont(getFont('courier'), 'normal');
     
     // Calculate font size based on cell size (ensure readability)
-    const fontSize = Math.max(Math.min(cellSize * 14, 11), 7);
-    doc.setFontSize(fontSize);
+    const gridFontSize = Math.max(Math.min(cellSize * 14 * fontSize, 11), 7);
+    doc.setFontSize(gridFontSize);
     doc.setTextColor(0, 0, 0);
     
-    // Draw grid cells
+    // Draw grid cells and letters
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
         const x = gridX + j * cellSize;
@@ -437,7 +577,7 @@ function drawSolutionsPage(
         // Draw cell border
         doc.rect(x, y, cellSize, cellSize);
         
-        // Draw letter centered in cell
+        // Draw letter centered in cell (on top of any solution lines)
         const letter = puzzle.grid[i][j] || ' ';
         if (letter && letter.trim()) {
           const textWidth = doc.getTextWidth(letter);
@@ -448,128 +588,6 @@ function drawSolutionsPage(
         }
       }
     }
-    
-    // Draw answer markings based on style (in red)
-    doc.setDrawColor(255, 0, 0); // Red for all styles
-    
-    // Get the list of actual words that should be marked (from word list)
-    const expectedWords = new Set(puzzle.placedWords.map(w => w.word.toUpperCase().trim()));
-    
-    // Filter and validate placed words - ensure we only draw ovals for valid, unique words
-    const validPlacedWords = puzzle.placedWords.filter(({ positions, word }) => {
-      // Must have at least 2 positions (a word needs at least 2 letters)
-      if (!positions || positions.length < 2) return false;
-      // Must have a valid word string
-      if (!word || !word.trim() || word.length < 2) return false;
-      // Word must be in the expected words list (double-check)
-      if (!expectedWords.has(word.toUpperCase().trim())) return false;
-      // Word length must match positions length exactly
-      if (positions.length !== word.length) return false;
-      // Ensure all positions are valid arrays with 2 elements
-      if (!positions.every(p => Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number')) {
-        return false;
-      }
-      // Ensure all positions are within grid bounds
-      if (!positions.every(p => p[0] >= 0 && p[0] < gridSize && p[1] >= 0 && p[1] < gridSize)) {
-        return false;
-      }
-      // Ensure positions form a valid straight line (horizontal, vertical, or diagonal)
-      // Check that all positions are in a line
-      if (positions.length > 2) {
-        const [r0, c0] = positions[0];
-        const [r1, c1] = positions[1];
-        const dr = r1 - r0;
-        const dc = c1 - c0;
-        
-        // Check if all subsequent positions follow the same direction
-        for (let i = 2; i < positions.length; i++) {
-          const [ri, ci] = positions[i];
-          const expectedR = r0 + i * dr;
-          const expectedC = c0 + i * dc;
-          if (ri !== expectedR || ci !== expectedC) {
-            return false; // Not a straight line
-          }
-        }
-      }
-      return true;
-    });
-    
-    // Use a Set to track unique word placements by their complete position sequence
-    // This ensures we only draw one oval per unique word placement, preventing duplicates
-    const drawnPlacements = new Set<string>();
-    
-    // Also track which cells have been marked to prevent overlapping ovals
-    const markedCells = new Set<string>();
-    
-    validPlacedWords.forEach(({ positions, word }) => {
-      // Create a unique key from ALL positions to ensure we catch exact duplicates
-      // Format: "word:r1,c1|r2,c2|r3,c3..."
-      const positionKey = positions.map(p => `${p[0]},${p[1]}`).join('|');
-      const uniqueKey = `${word.toLowerCase().trim()}:${positionKey}`;
-      
-      // Skip if we've already drawn this exact word placement
-      if (drawnPlacements.has(uniqueKey)) {
-        return;
-      }
-      
-      // Check if any of these cells are already marked by another word
-      // If so, skip to avoid overlapping ovals
-      const cellKeys = positions.map(p => `${p[0]},${p[1]}`);
-      const hasOverlap = cellKeys.some(key => markedCells.has(key));
-      
-      // For now, allow overlaps (words can share letters), but we'll track them
-      // The main issue is preventing duplicate entries
-      
-      // Calculate bounding box - use only the actual word positions
-      const minRow = Math.min(...positions.map(p => p[0]));
-      const maxRow = Math.max(...positions.map(p => p[0]));
-      const minCol = Math.min(...positions.map(p => p[1]));
-      const maxCol = Math.max(...positions.map(p => p[1]));
-      
-      const x = gridX + minCol * cellSize;
-      const y = gridY + minRow * cellSize;
-      const width = (maxCol - minCol + 1) * cellSize;
-      const height = (maxRow - minRow + 1) * cellSize;
-      
-      // Only draw if dimensions are valid and reasonable
-      if (width > 0 && height > 0 && width < pageWidth && height < pageHeight && width <= gridSize * cellSize && height <= gridSize * cellSize) {
-        if (answerKeyStyle === 'boxes') {
-          // Draw oval/ellipse outline in red (thicker border)
-          // Calculate center and radii for the ellipse
-          const centerX = x + width / 2;
-          const centerY = y + height / 2;
-          const radiusX = width / 2;
-          const radiusY = height / 2;
-          
-          // Draw ellipse with thicker border
-          doc.setLineWidth(0.012); // Increased from 0.005 to 0.012 (thicker)
-          doc.ellipse(centerX, centerY, radiusX, radiusY, 'S'); // 'S' = stroke only
-          
-          // Mark this placement as drawn
-          drawnPlacements.add(uniqueKey);
-          // Mark all cells as used
-          cellKeys.forEach(key => markedCells.add(key));
-        } else if (answerKeyStyle === 'strikethrough') {
-          // Draw strikethrough lines through each word
-          const [startRow, startCol] = positions[0];
-          const [endRow, endCol] = positions[positions.length - 1];
-          
-          const startX = gridX + startCol * cellSize + cellSize / 2;
-          const startY = gridY + startRow * cellSize + cellSize / 2;
-          const endX = gridX + endCol * cellSize + cellSize / 2;
-          const endY = gridY + endRow * cellSize + cellSize / 2;
-          
-          // Draw line through the word in red (thicker)
-          doc.setLineWidth(0.015); // Increased from 0.008 to 0.015 (thicker)
-          doc.line(startX, startY, endX, endY);
-          
-          // Mark this placement as drawn
-          drawnPlacements.add(uniqueKey);
-          // Mark all cells as used
-          cellKeys.forEach(key => markedCells.add(key));
-        }
-      }
-    });
   });
   
   // Page number footer

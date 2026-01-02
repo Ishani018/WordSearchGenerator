@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus } from 'lucide-react';
+import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
 import PDFDownloadButton from '@/components/PDFDownloadButton';
+import PDFPreviewModal from '@/components/PDFPreviewModal';
 import { Button } from '@/components/ui/button';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
 
@@ -55,9 +56,9 @@ export default function Home() {
   const [includeTitlePage, setIncludeTitlePage] = useState(false);
   const [includeBelongsToPage, setIncludeBelongsToPage] = useState(false);
   const [copyrightText, setCopyrightText] = useState('');
-  const [answerKeyStyle, setAnswerKeyStyle] = useState<'boxes' | 'strikethrough'>('boxes');
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(1.0); // Font size multiplier (1.0 = 100%, 1.2 = 120%, etc.)
+  const [pageSize, setPageSize] = useState<'Letter' | 'A4' | '6x9' | '8x10'>('Letter');
 
   // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
@@ -260,6 +261,155 @@ export default function Home() {
     }
   };
 
+  // Parse CSV file content
+  const parseCSV = (csvText: string): { words: string[]; hasClues: boolean } => {
+    const lines = csvText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length === 0) return { words: [], hasClues: false };
+
+    // Check if first line has headers (Word, Clue format)
+    const firstLine = lines[0].toLowerCase();
+    const hasClues = firstLine.includes('word') && firstLine.includes('clue');
+    
+    const words: string[] = [];
+    const startIndex = hasClues ? 1 : 0; // Skip header row if present
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) continue;
+
+      // Parse CSV line (handle quoted values)
+      const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+      
+      if (hasClues) {
+        // Word, Clue format - extract first column (word)
+        if (columns[0]) {
+          const word = columns[0].toUpperCase().trim();
+          if (word && /^[A-Z]+$/.test(word)) {
+            words.push(word);
+          }
+        }
+      } else {
+        // Simple word list - each line is a word
+        const word = columns[0]?.toUpperCase().trim();
+        if (word && /^[A-Z]+$/.test(word)) {
+          words.push(word);
+        }
+      }
+    }
+
+    return { words, hasClues };
+  };
+
+  // Handle CSV file upload
+  const handleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file extension
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('Please upload a CSV file');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const { words, hasClues } = parseCSV(text);
+
+      if (words.length === 0) {
+        alert('No valid words found in CSV file. Please ensure the file contains words (one per line or in Word, Clue format).');
+        return;
+      }
+
+      // Generate chapter title from filename (remove .csv extension)
+      const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
+
+      // Initialize or update book structure
+      if (!bookStructure) {
+        // Create new book structure
+        const newStructure: BookStructure = {
+          bookTitle: 'Imported Puzzle Book',
+          chapters: [{
+            title: chapterTitle,
+            words: words
+          }]
+        };
+        setBookStructure(newStructure);
+      } else {
+        // Add chapter to existing structure
+        const updated = { ...bookStructure };
+        updated.chapters.push({
+          title: chapterTitle,
+          words: words
+        });
+        setBookStructure(updated);
+      }
+
+      // Clear file input
+      event.target.value = '';
+
+      alert(`✅ Successfully imported ${words.length} words from "${chapterTitle}"`);
+    } catch (error) {
+      console.error('Error importing CSV:', error);
+      alert(`❌ Failed to import CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [bookStructure]);
+
+  // Handle multiple CSV files
+  const handleMultipleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.csv'));
+    
+    if (validFiles.length === 0) {
+      alert('Please select CSV files');
+      return;
+    }
+
+    try {
+      let newChapters: Chapter[] = [];
+      
+      for (const file of validFiles) {
+        const text = await file.text();
+        const { words } = parseCSV(text);
+
+        if (words.length > 0) {
+          const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
+          newChapters.push({
+            title: chapterTitle,
+            words: words
+          });
+        }
+      }
+
+      if (newChapters.length === 0) {
+        alert('No valid words found in any CSV files');
+        return;
+      }
+
+      // Initialize or update book structure
+      if (!bookStructure) {
+        const newStructure: BookStructure = {
+          bookTitle: 'Imported Puzzle Book',
+          chapters: newChapters
+        };
+        setBookStructure(newStructure);
+      } else {
+        const updated = { ...bookStructure };
+        updated.chapters.push(...newChapters);
+        setBookStructure(updated);
+      }
+
+      // Clear file input
+      event.target.value = '';
+
+      alert(`✅ Successfully imported ${newChapters.length} chapter(s) from ${validFiles.length} CSV file(s)`);
+    } catch (error) {
+      console.error('Error importing CSV files:', error);
+      alert(`❌ Failed to import CSV files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [bookStructure]);
+
   // Generate puzzles for all chapters
   const handleGeneratePuzzles = useCallback(() => {
     if (!bookStructure || bookStructure.chapters.length === 0) {
@@ -444,6 +594,39 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 h-[calc(100vh-120px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-4 overflow-y-auto pr-2">
+            {/* Bulk Import CSV (Book Mode) */}
+            {mode === 'book' && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Bulk Import CSV
+                </label>
+                <p className="text-xs text-slate-400 mb-3">
+                  Upload CSV files with words (one per line or Word, Clue format). Each CSV becomes a chapter.
+                </p>
+                <div className="space-y-2">
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      multiple
+                      onChange={handleMultipleCSVImport}
+                      className="hidden"
+                      id="csv-import-input"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => document.getElementById('csv-import-input')?.click()}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      size="sm"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Import CSV Files
+                    </Button>
+                  </label>
+                </div>
+              </div>
+            )}
+
             {/* Theme Input */}
             <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
               <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -787,20 +970,23 @@ export default function Home() {
                   )}
                   
                   {/* Answer Key Style */}
+                  {/* Page Size */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
-                      Answer Key Style
+                      Page Size
                     </label>
                     <select
-                      value={answerKeyStyle}
-                      onChange={(e) => setAnswerKeyStyle(e.target.value as 'boxes' | 'strikethrough')}
+                      value={pageSize}
+                      onChange={(e) => setPageSize(e.target.value as 'Letter' | 'A4' | '6x9' | '8x10')}
                       className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="boxes">Boxes (Outline)</option>
-                      <option value="strikethrough">Strikethrough Lines</option>
+                      <option value="Letter">Letter (8.5" × 11")</option>
+                      <option value="A4">A4 (8.27" × 11.69")</option>
+                      <option value="6x9">6" × 9"</option>
+                      <option value="8x10">8" × 10"</option>
                     </select>
                   </div>
-                  
+
                   {/* Font Selection */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
@@ -868,33 +1054,33 @@ export default function Home() {
                   </div>
                 </div>
                 
-                <PDFDownloadButton
-                  puzzles={bookPuzzles}
-                  title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-                  includeTitlePage={includeTitlePage}
-                  includeBelongsToPage={includeBelongsToPage}
-                  copyrightText={copyrightText}
-                  answerKeyStyle={answerKeyStyle}
-                  fontId={selectedFont}
-                  fontSize={fontSize}
-                />
+                <div className="space-y-2">
+                  <PDFPreviewModal
+                    puzzles={bookPuzzles}
+                    title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
+                    includeTitlePage={includeTitlePage}
+                    includeBelongsToPage={includeBelongsToPage}
+                    copyrightText={copyrightText}
+                    fontId={selectedFont}
+                    fontSize={fontSize}
+                    pageSize={pageSize}
+                  />
+                  <PDFDownloadButton
+                    puzzles={bookPuzzles}
+                    title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
+                    includeTitlePage={includeTitlePage}
+                    includeBelongsToPage={includeBelongsToPage}
+                    copyrightText={copyrightText}
+                    fontId={selectedFont}
+                    fontSize={fontSize}
+                    pageSize={pageSize}
+                  />
+                </div>
               </>
             )}
             {mode === 'single' && puzzle && (
               <>
                 <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <label className="block text-xs text-slate-400 mb-1">
-                    Answer Key Style
-                  </label>
-                  <select
-                    value={answerKeyStyle}
-                    onChange={(e) => setAnswerKeyStyle(e.target.value as 'boxes' | 'strikethrough')}
-                    className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="boxes">Boxes (Outline)</option>
-                    <option value="strikethrough">Strikethrough Lines</option>
-                  </select>
-                  
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
                       Font
@@ -960,13 +1146,22 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                <PDFDownloadButton
-                  puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                  title={`Word Search - ${theme || 'Puzzle'}`}
-                  answerKeyStyle={answerKeyStyle}
-                  fontId={selectedFont}
-                  fontSize={fontSize}
-                />
+                <div className="space-y-2">
+                  <PDFPreviewModal
+                    puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
+                    title={`Word Search - ${theme || 'Puzzle'}`}
+                    fontId={selectedFont}
+                    fontSize={fontSize}
+                    pageSize={pageSize}
+                  />
+                  <PDFDownloadButton
+                    puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
+                    title={`Word Search - ${theme || 'Puzzle'}`}
+                    fontId={selectedFont}
+                    fontSize={fontSize}
+                    pageSize={pageSize}
+                  />
+                </div>
               </>
             )}
           </aside>

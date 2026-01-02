@@ -136,20 +136,46 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
         const fontName = font.id.replace(/-/g, '');
         doc.addFileToVFS(`${fontName}.ttf`, base64);
         
-        // Add font to the document (normal weight)
-        doc.addFont(`${fontName}.ttf`, fontName, 'normal');
-        
-        // Note: Bold variants are loaded separately when user selects them
-        // We don't auto-load bold variants to avoid unnecessary errors
+        // Add font to the document
+        if (fontId.endsWith('-bold')) {
+          // For bold variants, add as bold weight
+          doc.addFont(`${fontName}.ttf`, fontName, 'bold');
+        } else {
+          // For regular fonts, add as normal weight
+          doc.addFont(`${fontName}.ttf`, fontName, 'normal');
+        }
         
         console.log(`Successfully loaded font: ${font.name} (${fontId}) as "${fontName}"`);
         return fontName;
       } catch (error) {
-        console.error(`Error loading Google font "${fontId}":`, error);
-        // Don't show fallback warning for bold variants (they're optional)
-        if (!fontId.endsWith('-bold')) {
-          console.warn('Falling back to Helvetica. Make sure font files are in public/fonts/ directory.');
+        // Silently fail for bold variants (they're optional and may not exist)
+        if (fontId.endsWith('-bold')) {
+          // Try to use the regular variant instead
+          const regularFontId = fontId.replace('-bold', '');
+          const regularFont = getFontById(regularFontId);
+          if (regularFont && regularFont.type === 'google' && regularFont.url) {
+            try {
+              const response = await fetch(regularFont.url);
+              if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                const fontName = regularFontId.replace(/-/g, '');
+                doc.addFileToVFS(`${fontName}.ttf`, base64);
+                doc.addFont(`${fontName}.ttf`, fontName, 'normal');
+                // Use bold style with regular font (jsPDF will simulate bold)
+                doc.addFont(`${fontName}.ttf`, fontName, 'bold');
+                console.log(`Using regular "${regularFont.name}" font for bold variant "${fontId}"`);
+                return fontName;
+              }
+            } catch (e) {
+              // Fall through to return undefined
+            }
+          }
+          // If we can't load regular variant either, just return undefined silently
+          return undefined;
         }
+        console.error(`Error loading Google font "${fontId}":`, error);
+        console.warn('Falling back to Helvetica. Make sure font files are in public/fonts/ directory.');
         return undefined;
       }
     }
