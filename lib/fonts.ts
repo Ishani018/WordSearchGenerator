@@ -30,54 +30,54 @@ export const AVAILABLE_FONTS: FontDefinition[] = [
     type: 'standard',
   },
   
-  // Google Fonts - Using jsDelivr CDN (more reliable than GitHub raw)
+  // Google Fonts - Loaded from local /fonts/ directory
   {
     name: 'Roboto',
     id: 'roboto',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Regular.ttf',
+    url: '/fonts/Roboto-Regular.ttf',
   },
   {
     name: 'Roboto Bold',
     id: 'roboto-bold',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/roboto/Roboto-Bold.ttf',
+    url: '/fonts/Roboto-Bold.ttf',
   },
   {
     name: 'Open Sans',
     id: 'open-sans',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/opensans/OpenSans-Regular.ttf',
+    url: '/fonts/OpenSans-Regular.ttf',
   },
   {
     name: 'Open Sans Bold',
     id: 'open-sans-bold',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache/opensans/OpenSans-Bold.ttf',
+    url: '/fonts/OpenSans-Bold.ttf',
   },
   {
     name: 'Lora',
     id: 'lora',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/lora/Lora-Regular.ttf',
+    url: '/fonts/Lora-Regular.ttf',
   },
   {
     name: 'Lora Bold',
     id: 'lora-bold',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/lora/Lora-Bold.ttf',
+    url: '/fonts/Lora-Bold.ttf',
   },
   {
     name: 'Playfair Display',
     id: 'playfair-display',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/playfairdisplay/PlayfairDisplay-Regular.ttf',
+    url: '/fonts/PlayfairDisplay-Regular.ttf',
   },
   {
     name: 'Playfair Display Bold',
     id: 'playfair-display-bold',
     type: 'google',
-    url: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/playfairdisplay/PlayfairDisplay-Bold.ttf',
+    url: '/fonts/PlayfairDisplay-Bold.ttf',
   },
 ];
 
@@ -116,14 +116,14 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
       return 'helvetica';
     }
     
-    // Google fonts need to be fetched and loaded
+    // Google fonts need to be fetched and loaded from local /fonts/ directory
     if (font.type === 'google' && font.url) {
       try {
-        // Fetch the font file
+        // Fetch the font file from local public/fonts directory
         const response = await fetch(font.url);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch font: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch font: ${response.status} ${response.statusText}. Make sure the font file exists in public/fonts/ directory.`);
         }
         
         // Convert to ArrayBuffer, then to base64
@@ -148,7 +148,7 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
         console.error(`Error loading Google font "${fontId}":`, error);
         // Don't show fallback warning for bold variants (they're optional)
         if (!fontId.endsWith('-bold')) {
-          console.warn('Falling back to Helvetica');
+          console.warn('Falling back to Helvetica. Make sure font files are in public/fonts/ directory.');
         }
         return undefined;
       }

@@ -719,14 +719,14 @@ export function generatePuzzle(
     // Final fallback: Random placement anywhere it fits
     if (!placed) {
       const maxAttempts = 200;
-      let attempts = 0;
-      
+    let attempts = 0;
+    
       const shuffledDirections = [...allowedDirections];
-      shuffle(shuffledDirections);
+    shuffle(shuffledDirections);
+    
+    for (const direction of shuffledDirections) {
+      if (placed || attempts >= maxAttempts) break;
       
-      for (const direction of shuffledDirections) {
-        if (placed || attempts >= maxAttempts) break;
-        
         const [dr, dc] = direction;
         const maxRow = size - 1 - Math.max(0, dr * (word.length - 1));
         const maxCol = size - 1 - Math.max(0, dc * (word.length - 1));
@@ -734,28 +734,28 @@ export function generatePuzzle(
         const minCol = Math.max(0, -dc * (word.length - 1));
         
         for (let attempt = 0; attempt < 20; attempt++) {
-          attempts++;
-          if (attempts >= maxAttempts) break;
-          
+        attempts++;
+        if (attempts >= maxAttempts) break;
+        
           const row = minRow + Math.floor(Math.random() * (maxRow - minRow + 1));
           const col = minCol + Math.floor(Math.random() * (maxCol - minCol + 1));
-          
-          if (canPlaceWord(grid, word, row, col, direction, size)) {
+        
+        if (canPlaceWord(grid, word, row, col, direction, size)) {
             const positions = placeWord(grid, word, row, col, direction, size);
             
             if (positions.length === word.length) {
-              placedWords.push({
-                word,
-                positions,
-                direction
-              });
-              placed = true;
-              break;
+          placedWords.push({
+            word,
+            positions,
+            direction
+          });
+          placed = true;
+          break;
             }
-          }
         }
-        
-        if (placed) break;
+      }
+      
+      if (placed) break;
       }
     }
     

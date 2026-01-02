@@ -452,37 +452,122 @@ function drawSolutionsPage(
     // Draw answer markings based on style (in red)
     doc.setDrawColor(255, 0, 0); // Red for all styles
     
-    puzzle.placedWords.forEach(({ positions }) => {
-      if (positions.length < 2) return;
+    // Get the list of actual words that should be marked (from word list)
+    const expectedWords = new Set(puzzle.placedWords.map(w => w.word.toUpperCase().trim()));
+    
+    // Filter and validate placed words - ensure we only draw ovals for valid, unique words
+    const validPlacedWords = puzzle.placedWords.filter(({ positions, word }) => {
+      // Must have at least 2 positions (a word needs at least 2 letters)
+      if (!positions || positions.length < 2) return false;
+      // Must have a valid word string
+      if (!word || !word.trim() || word.length < 2) return false;
+      // Word must be in the expected words list (double-check)
+      if (!expectedWords.has(word.toUpperCase().trim())) return false;
+      // Word length must match positions length exactly
+      if (positions.length !== word.length) return false;
+      // Ensure all positions are valid arrays with 2 elements
+      if (!positions.every(p => Array.isArray(p) && p.length === 2 && typeof p[0] === 'number' && typeof p[1] === 'number')) {
+        return false;
+      }
+      // Ensure all positions are within grid bounds
+      if (!positions.every(p => p[0] >= 0 && p[0] < gridSize && p[1] >= 0 && p[1] < gridSize)) {
+        return false;
+      }
+      // Ensure positions form a valid straight line (horizontal, vertical, or diagonal)
+      // Check that all positions are in a line
+      if (positions.length > 2) {
+        const [r0, c0] = positions[0];
+        const [r1, c1] = positions[1];
+        const dr = r1 - r0;
+        const dc = c1 - c0;
+        
+        // Check if all subsequent positions follow the same direction
+        for (let i = 2; i < positions.length; i++) {
+          const [ri, ci] = positions[i];
+          const expectedR = r0 + i * dr;
+          const expectedC = c0 + i * dc;
+          if (ri !== expectedR || ci !== expectedC) {
+            return false; // Not a straight line
+          }
+        }
+      }
+      return true;
+    });
+    
+    // Use a Set to track unique word placements by their complete position sequence
+    // This ensures we only draw one oval per unique word placement, preventing duplicates
+    const drawnPlacements = new Set<string>();
+    
+    // Also track which cells have been marked to prevent overlapping ovals
+    const markedCells = new Set<string>();
+    
+    validPlacedWords.forEach(({ positions, word }) => {
+      // Create a unique key from ALL positions to ensure we catch exact duplicates
+      // Format: "word:r1,c1|r2,c2|r3,c3..."
+      const positionKey = positions.map(p => `${p[0]},${p[1]}`).join('|');
+      const uniqueKey = `${word.toLowerCase().trim()}:${positionKey}`;
       
-      if (answerKeyStyle === 'boxes') {
-        // Draw boxes around each word
-        const minRow = Math.min(...positions.map(p => p[0]));
-        const maxRow = Math.max(...positions.map(p => p[0]));
-        const minCol = Math.min(...positions.map(p => p[1]));
-        const maxCol = Math.max(...positions.map(p => p[1]));
-        
-        const x = gridX + minCol * cellSize;
-        const y = gridY + minRow * cellSize;
-        const width = (maxCol - minCol + 1) * cellSize;
-        const height = (maxRow - minRow + 1) * cellSize;
-        
-        // Draw rectangle outline in red (no fill)
-        doc.setLineWidth(0.005);
-        doc.rect(x, y, width, height, 'S'); // 'S' = stroke only
-      } else if (answerKeyStyle === 'strikethrough') {
-        // Draw strikethrough lines through each word
-        const [startRow, startCol] = positions[0];
-        const [endRow, endCol] = positions[positions.length - 1];
-        
-        const startX = gridX + startCol * cellSize + cellSize / 2;
-        const startY = gridY + startRow * cellSize + cellSize / 2;
-        const endX = gridX + endCol * cellSize + cellSize / 2;
-        const endY = gridY + endRow * cellSize + cellSize / 2;
-        
-        // Draw line through the word in red
-        doc.setLineWidth(0.008);
-        doc.line(startX, startY, endX, endY);
+      // Skip if we've already drawn this exact word placement
+      if (drawnPlacements.has(uniqueKey)) {
+        return;
+      }
+      
+      // Check if any of these cells are already marked by another word
+      // If so, skip to avoid overlapping ovals
+      const cellKeys = positions.map(p => `${p[0]},${p[1]}`);
+      const hasOverlap = cellKeys.some(key => markedCells.has(key));
+      
+      // For now, allow overlaps (words can share letters), but we'll track them
+      // The main issue is preventing duplicate entries
+      
+      // Calculate bounding box - use only the actual word positions
+      const minRow = Math.min(...positions.map(p => p[0]));
+      const maxRow = Math.max(...positions.map(p => p[0]));
+      const minCol = Math.min(...positions.map(p => p[1]));
+      const maxCol = Math.max(...positions.map(p => p[1]));
+      
+      const x = gridX + minCol * cellSize;
+      const y = gridY + minRow * cellSize;
+      const width = (maxCol - minCol + 1) * cellSize;
+      const height = (maxRow - minRow + 1) * cellSize;
+      
+      // Only draw if dimensions are valid and reasonable
+      if (width > 0 && height > 0 && width < pageWidth && height < pageHeight && width <= gridSize * cellSize && height <= gridSize * cellSize) {
+        if (answerKeyStyle === 'boxes') {
+          // Draw oval/ellipse outline in red (thicker border)
+          // Calculate center and radii for the ellipse
+          const centerX = x + width / 2;
+          const centerY = y + height / 2;
+          const radiusX = width / 2;
+          const radiusY = height / 2;
+          
+          // Draw ellipse with thicker border
+          doc.setLineWidth(0.012); // Increased from 0.005 to 0.012 (thicker)
+          doc.ellipse(centerX, centerY, radiusX, radiusY, 'S'); // 'S' = stroke only
+          
+          // Mark this placement as drawn
+          drawnPlacements.add(uniqueKey);
+          // Mark all cells as used
+          cellKeys.forEach(key => markedCells.add(key));
+        } else if (answerKeyStyle === 'strikethrough') {
+          // Draw strikethrough lines through each word
+          const [startRow, startCol] = positions[0];
+          const [endRow, endCol] = positions[positions.length - 1];
+          
+          const startX = gridX + startCol * cellSize + cellSize / 2;
+          const startY = gridY + startRow * cellSize + cellSize / 2;
+          const endX = gridX + endCol * cellSize + cellSize / 2;
+          const endY = gridY + endRow * cellSize + cellSize / 2;
+          
+          // Draw line through the word in red (thicker)
+          doc.setLineWidth(0.015); // Increased from 0.008 to 0.015 (thicker)
+          doc.line(startX, startY, endX, endY);
+          
+          // Mark this placement as drawn
+          drawnPlacements.add(uniqueKey);
+          // Mark all cells as used
+          cellKeys.forEach(key => markedCells.add(key));
+        }
       }
     });
   });
