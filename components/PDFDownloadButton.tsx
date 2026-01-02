@@ -6,8 +6,6 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loadFontForPDF, getFontById } from '@/lib/fonts';
 
-export type PageSize = 'Letter' | 'A4' | '6x9' | '8x10';
-
 export interface PDFDownloadButtonProps {
   puzzles: Array<PuzzleResult & { chapterTitle?: string }>;
   title: string;
@@ -16,16 +14,7 @@ export interface PDFDownloadButtonProps {
   copyrightText?: string;
   fontId?: string;
   fontSize?: number; // Base font size multiplier (1.0 = normal, 1.2 = 20% larger, etc.)
-  pageSize?: PageSize; // Page size option
 }
-
-// Page size configuration
-const PAGE_SIZES = {
-  'Letter': { width: 8.5, height: 11, format: 'letter' },
-  'A4': { width: 8.27, height: 11.69, format: 'a4' },
-  '6x9': { width: 6, height: 9, format: [6, 9] as [number, number] },
-  '8x10': { width: 8, height: 10, format: [8, 10] as [number, number] }
-};
 
 // Export reusable PDF generation function
 export async function generatePDFDoc({
@@ -35,16 +24,12 @@ export async function generatePDFDoc({
   includeBelongsToPage = false,
   copyrightText = '',
   fontId,
-  fontSize = 1.0,
-  pageSize = 'Letter'
+  fontSize = 1.0
 }: PDFDownloadButtonProps): Promise<jsPDF> {
-  // Get page size configuration (default to Letter)
-  const pageConfig = PAGE_SIZES[pageSize] || PAGE_SIZES['Letter'];
-  
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'in',
-    format: pageConfig.format
+    format: 'letter'
   });
   
   // Load font if provided
@@ -80,8 +65,8 @@ export async function generatePDFDoc({
     return baseSize * fontSize;
   };
   
-  const pageWidth = pageConfig.width;
-  const pageHeight = pageConfig.height;
+  const pageWidth = 8.5;
+  const pageHeight = 11;
   const margin = 0.5;
   let currentPage = 1;
   
@@ -143,8 +128,7 @@ export default function PDFDownloadButton({
   includeBelongsToPage = false,
   copyrightText = '',
   fontId,
-  fontSize = 1.0,
-  pageSize = 'Letter'
+  fontSize = 1.0
 }: PDFDownloadButtonProps) {
   const handleDownload = async () => {
     const doc = await generatePDFDoc({
@@ -154,8 +138,7 @@ export default function PDFDownloadButton({
       includeBelongsToPage,
       copyrightText,
       fontId,
-      fontSize,
-      pageSize
+      fontSize
     });
     doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
   };
@@ -330,7 +313,7 @@ function drawPuzzlePage(
   doc.setDrawColor(0, 0, 0);
   doc.setFont(getFont('courier'), 'normal');
   
-  const gridFontSize = Math.max(Math.min(scaledCellSize * 11 * fontSize, 12), 7);
+  const gridFontSize = Math.max(Math.min(scaledCellSize * 11 * fontSize, 12), 4);
   doc.setFontSize(gridFontSize);
   doc.setTextColor(0, 0, 0);
   
@@ -564,7 +547,7 @@ function drawSolutionsPage(
     doc.setFont(getFont('courier'), 'normal');
     
     // Calculate font size based on cell size (ensure readability)
-    const gridFontSize = Math.max(Math.min(cellSize * 14 * fontSize, 11), 7);
+    const gridFontSize = Math.max(Math.min(cellSize * 14 * fontSize, 11), 4);
     doc.setFontSize(gridFontSize);
     doc.setTextColor(0, 0, 0);
     

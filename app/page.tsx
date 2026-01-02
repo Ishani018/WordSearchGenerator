@@ -58,7 +58,6 @@ export default function Home() {
   const [copyrightText, setCopyrightText] = useState('');
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(1.0); // Font size multiplier (1.0 = 100%, 1.2 = 120%, etc.)
-  const [pageSize, setPageSize] = useState<'Letter' | 'A4' | '6x9' | '8x10'>('Letter');
 
   // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
@@ -970,23 +969,6 @@ export default function Home() {
                   )}
                   
                   {/* Answer Key Style */}
-                  {/* Page Size */}
-                  <div className="mt-3">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Page Size
-                    </label>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => setPageSize(e.target.value as 'Letter' | 'A4' | '6x9' | '8x10')}
-                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Letter">Letter (8.5" × 11")</option>
-                      <option value="A4">A4 (8.27" × 11.69")</option>
-                      <option value="6x9">6" × 9"</option>
-                      <option value="8x10">8" × 10"</option>
-                    </select>
-                  </div>
-
                   {/* Font Selection */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
@@ -1040,7 +1022,7 @@ export default function Home() {
                     <input
                       type="range"
                       min="0.7"
-                      max="1.5"
+                      max="2.0"
                       step="0.05"
                       value={fontSize}
                       onChange={(e) => setFontSize(parseFloat(e.target.value))}
@@ -1049,7 +1031,7 @@ export default function Home() {
                     <div className="flex justify-between text-xs text-slate-500 mt-1">
                       <span>70%</span>
                       <span>100%</span>
-                      <span>150%</span>
+                      <span>200%</span>
                     </div>
                   </div>
                 </div>
@@ -1063,7 +1045,6 @@ export default function Home() {
                     copyrightText={copyrightText}
                     fontId={selectedFont}
                     fontSize={fontSize}
-                    pageSize={pageSize}
                   />
                   <PDFDownloadButton
                     puzzles={bookPuzzles}
@@ -1073,7 +1054,6 @@ export default function Home() {
                     copyrightText={copyrightText}
                     fontId={selectedFont}
                     fontSize={fontSize}
-                    pageSize={pageSize}
                   />
                 </div>
               </>
@@ -1081,6 +1061,7 @@ export default function Home() {
             {mode === 'single' && puzzle && (
               <>
                 <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                  {/* Font Selection */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
                       Font
@@ -1133,7 +1114,7 @@ export default function Home() {
                     <input
                       type="range"
                       min="0.7"
-                      max="1.5"
+                      max="2.0"
                       step="0.05"
                       value={fontSize}
                       onChange={(e) => setFontSize(parseFloat(e.target.value))}
@@ -1142,7 +1123,7 @@ export default function Home() {
                     <div className="flex justify-between text-xs text-slate-500 mt-1">
                       <span>70%</span>
                       <span>100%</span>
-                      <span>150%</span>
+                      <span>200%</span>
                     </div>
                   </div>
                 </div>
@@ -1152,14 +1133,12 @@ export default function Home() {
                     title={`Word Search - ${theme || 'Puzzle'}`}
                     fontId={selectedFont}
                     fontSize={fontSize}
-                    pageSize={pageSize}
                   />
                   <PDFDownloadButton
                     puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
                     title={`Word Search - ${theme || 'Puzzle'}`}
                     fontId={selectedFont}
                     fontSize={fontSize}
-                    pageSize={pageSize}
                   />
                 </div>
               </>
