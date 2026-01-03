@@ -1,0 +1,161 @@
+'use client';
+
+import * as React from 'react';
+import { X, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export interface AlertOptions {
+  title?: string;
+  message: string;
+  type?: 'error' | 'warning' | 'success' | 'info';
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
+interface AlertDialogProps extends AlertOptions {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function AlertDialog({
+  isOpen,
+  onClose,
+  title,
+  message,
+  type = 'info',
+  confirmText = 'OK',
+  cancelText,
+  onConfirm,
+  onCancel,
+}: AlertDialogProps) {
+  if (!isOpen) return null;
+
+  const handleConfirm = () => {
+    if (onConfirm) {
+      onConfirm();
+    }
+    onClose();
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
+    onClose();
+  };
+
+  const icons = {
+    error: AlertCircle,
+    warning: AlertTriangle,
+    success: CheckCircle,
+    info: Info,
+  };
+
+  const colors = {
+    error: {
+      bg: 'bg-red-900/20',
+      border: 'border-red-700',
+      icon: 'text-red-400',
+      title: 'text-red-200',
+      text: 'text-red-100',
+      button: 'bg-red-600 hover:bg-red-700',
+    },
+    warning: {
+      bg: 'bg-yellow-900/20',
+      border: 'border-yellow-700',
+      icon: 'text-yellow-400',
+      title: 'text-yellow-200',
+      text: 'text-yellow-100',
+      button: 'bg-yellow-600 hover:bg-yellow-700',
+    },
+    success: {
+      bg: 'bg-green-900/20',
+      border: 'border-green-700',
+      icon: 'text-green-400',
+      title: 'text-green-200',
+      text: 'text-green-100',
+      button: 'bg-green-600 hover:bg-green-700',
+    },
+    info: {
+      bg: 'bg-blue-900/20',
+      border: 'border-blue-700',
+      icon: 'text-blue-400',
+      title: 'text-blue-200',
+      text: 'text-blue-100',
+      button: 'bg-blue-600 hover:bg-blue-700',
+    },
+  };
+
+  const Icon = icons[type];
+  const colorScheme = colors[type];
+
+  // Format message with line breaks
+  const formattedMessage = message.split('\n').map((line, index) => (
+    <React.Fragment key={index}>
+      {line}
+      {index < message.split('\n').length - 1 && <br />}
+    </React.Fragment>
+  ));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Dialog */}
+      <div className="relative z-10 w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-200">
+        <div
+          className={`${colorScheme.bg} ${colorScheme.border} border-2 rounded-lg shadow-2xl overflow-hidden`}
+        >
+          {/* Header */}
+          <div className="flex items-start gap-4 p-6">
+            <div className={`${colorScheme.icon} flex-shrink-0`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              {title && (
+                <h3 className={`${colorScheme.title} text-lg font-semibold mb-2`}>
+                  {title}
+                </h3>
+              )}
+              <p className={`${colorScheme.text} text-sm leading-relaxed`}>
+                {formattedMessage}
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className={`${colorScheme.icon} hover:opacity-70 transition-opacity flex-shrink-0`}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 px-6 pb-6">
+            {cancelText && (
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+              >
+                {cancelText}
+              </Button>
+            )}
+            <Button
+              onClick={handleConfirm}
+              className={`${colorScheme.button} text-white`}
+            >
+              {confirmText}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

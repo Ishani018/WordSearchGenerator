@@ -12,6 +12,9 @@ import { AVAILABLE_FONTS } from '@/lib/fonts';
 import { validateWords } from '@/lib/word-validator';
 import LoginForm from '@/components/LoginForm';
 import { isAuthenticated as checkAuthStatus, setAuthenticated } from '@/lib/auth';
+import { useAlert } from '@/lib/alert';
+import { useToast } from '@/components/ui/toast';
+import InstructionsPanel from '@/components/InstructionsPanel';
 
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -53,7 +56,7 @@ export default function Home() {
   
   // Book mode settings
   const [wordsPerPuzzle, setWordsPerPuzzle] = useState(15);
-  const [numChapters, setNumChapters] = useState(25);
+  const [numChapters, setNumChapters] = useState(2);
   
   // Single puzzle settings
   const [singleWords, setSingleWords] = useState(20);
@@ -74,6 +77,7 @@ export default function Home() {
   const [isGeneratingPuzzle, setIsGeneratingPuzzle] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const [structureProgress, setStructureProgress] = useState({ current: 0, total: 0, status: '' });
+  const [wordGenerationProgress, setWordGenerationProgress] = useState({ current: 0, total: 0, status: '' });
   
   // Page Settings
   const [pageSize, setPageSize] = useState(PAGE_SIZES[6]); // Default Letter
@@ -252,8 +256,12 @@ export default function Home() {
     if (!theme.trim()) return;
     
     setIsGeneratingWords(true);
+    setWordGenerationProgress({ current: 0, total: 100, status: 'Generating words from AI...' });
+    
     try {
       const wordCount = singleWords * 2;
+      
+      setWordGenerationProgress({ current: 20, total: 100, status: 'Requesting words from AI...' });
       
       const response = await fetch('/api/generate-words', {
         method: 'POST',
@@ -271,6 +279,8 @@ export default function Home() {
         throw new Error(error.error || 'Failed to generate words');
       }
 
+      setWordGenerationProgress({ current: 50, total: 100, status: 'Processing words...' });
+      
       const data = await response.json();
       
       if (data.warning) {
@@ -282,6 +292,8 @@ export default function Home() {
       
       // Validate words if enabled
       if (enableWordValidation && words.length > 0) {
+        setWordGenerationProgress({ current: 60, total: 100, status: 'Filtering words by grid size...' });
+        
         const maxWordLength = gridSize - 2;
         // First filter by grid size
         words = words
@@ -295,10 +307,14 @@ export default function Home() {
         
         // Then validate with dictionary API
         if (words.length > 0) {
+          setWordGenerationProgress({ current: 70, total: 100, status: `Validating ${words.length} words...` });
           const { valid } = await validateWords(words);
           words = valid;
+          setWordGenerationProgress({ current: 90, total: 100, status: 'Finalizing...' });
         }
       } else {
+        setWordGenerationProgress({ current: 70, total: 100, status: 'Filtering words by grid size...' });
+        
         // Still filter by grid size even if validation is disabled
         const maxWordLength = gridSize - 2;
         words = words
@@ -309,15 +325,21 @@ export default function Home() {
                    upperWord.length <= maxWordLength && 
                    /^[A-Z]+$/.test(upperWord);
           });
+        setWordGenerationProgress({ current: 90, total: 100, status: 'Finalizing...' });
       }
       
+      setWordGenerationProgress({ current: 100, total: 100, status: `Generated ${words.length} words!` });
       setGeneratedWords(words);
     } catch (error) {
       console.error('Error generating words:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate words';
       alert(`❌ ${errorMessage}\n\nMake sure GROQ_API_KEY is set in your environment variables.`);
+      setWordGenerationProgress({ current: 0, total: 0, status: '' });
     } finally {
-      setIsGeneratingWords(false);
+      setTimeout(() => {
+        setIsGeneratingWords(false);
+        setTimeout(() => setWordGenerationProgress({ current: 0, total: 0, status: '' }), 2000);
+      }, 500);
     }
   }, [theme, singleWords, gridSize, enableWordValidation]);
 
@@ -880,7 +902,7 @@ export default function Home() {
 
   // Show loading state while checking auth
   if (isCheckingAuth) {
-    return (
+  return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-slate-400">Loading...</div>
       </div>
@@ -1051,6 +1073,34 @@ export default function Home() {
                       style={{ 
                         width: structureProgress.total > 0 
                           ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
+                          : '30%' // Indeterminate progress
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Word Generation Progress (Single Mode) */}
+            {mode === 'single' && isGeneratingWords && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-slate-300">
+                      {wordGenerationProgress.status || 'Generating words...'}
+                    </span>
+                    {wordGenerationProgress.total > 0 && (
+                      <span className="text-xs text-slate-400 font-semibold">
+                        {Math.round((wordGenerationProgress.current / wordGenerationProgress.total) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-3 rounded-full transition-all duration-200 ease-out"
+                      style={{ 
+                        width: wordGenerationProgress.total > 0 
+                          ? `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
                           : '30%' // Indeterminate progress
                       }}
                     />
@@ -1671,15 +1721,9 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800">
-                <div className="text-center">
-                  <Grid3x3 className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                  <p className="text-slate-400">
-                    {mode === 'book' 
-                      ? 'Enter a theme and click "Generate Book Structure" to create chapters'
-                      : 'Enter a theme and generate words to see the puzzle'
-                    }
-                  </p>
+              <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 p-6">
+                <div className="w-full max-w-2xl">
+                  <InstructionsPanel mode={mode} />
                 </div>
               </div>
             )}

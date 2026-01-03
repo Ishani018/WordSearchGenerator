@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import { AlertProvider } from "@/lib/alert";
+import { ToastProvider } from "@/components/ui/toast";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -40,7 +42,11 @@ export default function RootLayout({
               className={`${plusJakarta.variable} ${playfair.variable} antialiased`}
               suppressHydrationWarning
             >
-              {children}
+              <AlertProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </AlertProvider>
             </body>
           </html>
         );
