@@ -102,10 +102,8 @@ GROQ_MODEL=llama-3.3-70b-versatile
 
 # Authentication Credentials
 # Set these to secure passwords for your application
-NEXT_PUBLIC_ADMIN_USERNAME=Admin
-NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password_here
-NEXT_PUBLIC_SAMPA_USERNAME=Sampa
-NEXT_PUBLIC_SAMPA_PASSWORD=your_sampa_password_here
+NEXT_PUBLIC_USERNAME=Username
+NEXT_PUBLIC_PASSWORD=your_password
 ```
 
 **Important**: Never commit `.env.local` to version control. It's already in `.gitignore`.
