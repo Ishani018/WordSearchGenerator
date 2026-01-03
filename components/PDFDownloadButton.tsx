@@ -58,10 +58,12 @@ export async function generatePDFDoc({
   }
   
   // Helper to get font name for setFont calls
-  const getFont = (defaultFont: string = 'helvetica') => {
+  const getFont = (defaultFont: string = 'helvetica', style: 'normal' | 'bold' = 'normal') => {
     const finalFont = fontName || defaultFont;
     // Only override if we have a custom font loaded (don't override courier for grid)
     if (fontName && defaultFont !== 'courier') {
+      // For fonts without bold variants (like Schoolbell), use normal style even when bold is requested
+      // jsPDF will handle the fallback
       return fontName;
     }
     return defaultFont;

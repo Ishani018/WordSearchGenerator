@@ -79,6 +79,24 @@ export const AVAILABLE_FONTS: FontDefinition[] = [
     type: 'google',
     url: '/fonts/PlayfairDisplay-Bold.ttf',
   },
+  {
+    name: 'Playpen Sans',
+    id: 'playpen-sans',
+    type: 'google',
+    url: '/fonts/PlaypenSans-Regular.ttf',
+  },
+  {
+    name: 'Playpen Sans Bold',
+    id: 'playpen-sans-bold',
+    type: 'google',
+    url: '/fonts/PlaypenSans-Bold.ttf',
+  },
+  {
+    name: 'Schoolbell',
+    id: 'schoolbell',
+    type: 'google',
+    url: '/fonts/Schoolbell-Regular.ttf',
+  },
 ];
 
 /**
@@ -87,6 +105,9 @@ export const AVAILABLE_FONTS: FontDefinition[] = [
 export function getFontById(fontId: string): FontDefinition | undefined {
   return AVAILABLE_FONTS.find(font => font.id === fontId);
 }
+
+// Cache to prevent reloading fonts that are already loaded
+const fontCache = new Map<string, string>();
 
 /**
  * Load a font for jsPDF document
@@ -97,6 +118,11 @@ export function getFontById(fontId: string): FontDefinition | undefined {
  * @returns Promise that resolves with the font name to use, or undefined if standard font
  */
 export async function loadFontForPDF(doc: any, fontId: string): Promise<string | undefined> {
+  // Check cache first
+  const cacheKey = `${fontId}`;
+  if (fontCache.has(cacheKey)) {
+    return fontCache.get(cacheKey);
+  }
   try {
     const font = getFontById(fontId);
     
@@ -126,11 +152,17 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
           throw new Error(`Failed to fetch font: ${response.status} ${response.statusText}. Make sure the font file exists in public/fonts/ directory.`);
         }
         
-        // Convert to ArrayBuffer, then to base64
+        // Convert to ArrayBuffer, then to base64 (using efficient chunking to avoid stack overflow)
         const arrayBuffer = await response.arrayBuffer();
-        const base64 = btoa(
-          String.fromCharCode(...new Uint8Array(arrayBuffer))
-        );
+        const bytes = new Uint8Array(arrayBuffer);
+        // Convert in chunks to avoid "Maximum call stack size exceeded" error
+        let binary = '';
+        const chunkSize = 8192; // Process 8KB at a time
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode.apply(null, Array.from(chunk));
+        }
+        const base64 = btoa(binary);
         
         // Add font to jsPDF's virtual file system
         const fontName = font.id.replace(/-/g, '');
@@ -143,9 +175,17 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
         } else {
           // For regular fonts, add as normal weight
           doc.addFont(`${fontName}.ttf`, fontName, 'normal');
+          // Also register for bold (for fonts without bold variants like Schoolbell)
+          // This allows using bold style even if the font doesn't have a bold variant
+          try {
+            doc.addFont(`${fontName}.ttf`, fontName, 'bold');
+          } catch (e) {
+            // If it fails, that's okay - the font just doesn't support bold
+          }
         }
         
         console.log(`Successfully loaded font: ${font.name} (${fontId}) as "${fontName}"`);
+        fontCache.set(cacheKey, fontName);
         return fontName;
       } catch (error) {
         // Silently fail for bold variants (they're optional and may not exist)
@@ -158,13 +198,22 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
               const response = await fetch(regularFont.url);
               if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer();
-                const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                const bytes = new Uint8Array(arrayBuffer);
+                // Convert in chunks to avoid stack overflow
+                let binary = '';
+                const chunkSize = 8192;
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                  const chunk = bytes.subarray(i, i + chunkSize);
+                  binary += String.fromCharCode.apply(null, Array.from(chunk));
+                }
+                const base64 = btoa(binary);
                 const fontName = regularFontId.replace(/-/g, '');
                 doc.addFileToVFS(`${fontName}.ttf`, base64);
                 doc.addFont(`${fontName}.ttf`, fontName, 'normal');
                 // Use bold style with regular font (jsPDF will simulate bold)
                 doc.addFont(`${fontName}.ttf`, fontName, 'bold');
                 console.log(`Using regular "${regularFont.name}" font for bold variant "${fontId}"`);
+                fontCache.set(cacheKey, fontName);
                 return fontName;
               }
             } catch (e) {

@@ -9,6 +9,7 @@ import PDFDownloadButton, { PDFPageItem } from '@/components/PDFDownloadButton';
 import PDFPreviewModal from '@/components/PDFPreviewModal';
 import { Button } from '@/components/ui/button';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
+import { validateWords } from '@/lib/word-validator';
 
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -54,6 +55,8 @@ export default function Home() {
   const [bookStructure, setBookStructure] = useState<BookStructure | null>(null);
   const [editingChapterIndex, setEditingChapterIndex] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [editingWordsIndex, setEditingWordsIndex] = useState<number | null>(null);
+  const [editingWords, setEditingWords] = useState<string>('');
   
   // Generated data
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
@@ -76,6 +79,7 @@ export default function Home() {
   const [copyrightText, setCopyrightText] = useState('');
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(10); // Font size in points (like MS Word/Google Docs)
+  const [enableWordValidation, setEnableWordValidation] = useState(true); // Enable dictionary validation
 
   // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
@@ -149,7 +153,7 @@ export default function Home() {
           
           if (wordsResponse.ok) {
             const wordsData = await wordsResponse.json();
-            const words = (wordsData.words || [])
+            let words = (wordsData.words || [])
               .map((w: string) => w.toUpperCase().trim())
               .filter((w: string) => {
                 const upperWord = w;
@@ -158,6 +162,17 @@ export default function Home() {
                        /^[A-Z]+$/.test(upperWord) &&
                        !allSeenWords.has(upperWord);
               });
+            
+            // Validate words if enabled
+            if (enableWordValidation && words.length > 0) {
+              setStructureProgress({ 
+                current: chapterIndex, 
+                total: totalChapters, 
+                status: `Validating words for Chapter ${chapterIndex + 1} of ${totalChapters}...` 
+              });
+              const { valid } = await validateWords(words);
+              words = valid;
+            }
             
             // Add unique words to seen set
             words.forEach((w: string) => allSeenWords.add(w));
@@ -203,7 +218,7 @@ export default function Home() {
         setTimeout(() => setStructureProgress({ current: 0, total: 0, status: '' }), 2000);
       }, 500);
     }
-  }, [theme, wordsPerPuzzle, numChapters, gridSize]);
+  }, [theme, numChapters, wordsPerPuzzle, gridSize, enableWordValidation]);
 
   // Generate words from theme (for single puzzle mode)
   const handleGenerateWords = useCallback(async () => {
@@ -236,7 +251,40 @@ export default function Home() {
         alert(`⚠️ ${data.warning}`);
       }
       
-      setGeneratedWords(data.words || []);
+      let words = data.words || [];
+      
+      // Validate words if enabled
+      if (enableWordValidation && words.length > 0) {
+        const maxWordLength = gridSize - 2;
+        // First filter by grid size
+        words = words
+          .map((w: string) => w.toUpperCase().trim())
+          .filter((w: string) => {
+            const upperWord = w;
+            return upperWord.length >= 4 && 
+                   upperWord.length <= maxWordLength && 
+                   /^[A-Z]+$/.test(upperWord);
+          });
+        
+        // Then validate with dictionary API
+        if (words.length > 0) {
+          const { valid } = await validateWords(words);
+          words = valid;
+        }
+      } else {
+        // Still filter by grid size even if validation is disabled
+        const maxWordLength = gridSize - 2;
+        words = words
+          .map((w: string) => w.toUpperCase().trim())
+          .filter((w: string) => {
+            const upperWord = w;
+            return upperWord.length >= 4 && 
+                   upperWord.length <= maxWordLength && 
+                   /^[A-Z]+$/.test(upperWord);
+          });
+      }
+      
+      setGeneratedWords(words);
     } catch (error) {
       console.error('Error generating words:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate words';
@@ -244,7 +292,7 @@ export default function Home() {
     } finally {
       setIsGeneratingWords(false);
     }
-  }, [theme, singleWords]);
+  }, [theme, singleWords, gridSize, enableWordValidation]);
 
   // Edit chapter title
   const handleEditChapter = (index: number) => {
@@ -263,6 +311,38 @@ export default function Home() {
       setEditingChapterIndex(null);
       setEditingTitle('');
     }
+  };
+
+  // Edit chapter words
+  const handleEditWords = (index: number) => {
+    if (bookStructure && !bookStructure.chapters[index].isBlank) {
+      setEditingWordsIndex(index);
+      setEditingWords(bookStructure.chapters[index].words.join(', '));
+    }
+  };
+
+  // Save chapter words edit
+  const handleSaveWords = (index: number) => {
+    if (bookStructure && editingWordsIndex === index) {
+      const updated = { ...bookStructure };
+      // Parse words from comma-separated or newline-separated string
+      const words = editingWords
+        .split(/[,\n]/)
+        .map(w => w.trim().toUpperCase())
+        .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
+      
+      updated.chapters[index].words = words;
+      setBookStructure(updated);
+      setEditingWordsIndex(null);
+      setEditingWords('');
+      setBookPuzzles([]); // Clear generated puzzles since words changed
+    }
+  };
+
+  // Cancel word editing
+  const handleCancelEditWords = () => {
+    setEditingWordsIndex(null);
+    setEditingWords('');
   };
 
   // Delete chapter
@@ -360,13 +440,94 @@ export default function Home() {
       const text = await file.text();
       const { words, hasClues } = parseCSV(text);
 
+      console.log(`CSV Import: Parsed ${words.length} words from file "${file.name}"`);
+      console.log(`CSV Import: Sample words:`, words.slice(0, 5));
+
       if (words.length === 0) {
         alert('No valid words found in CSV file. Please ensure the file contains words (one per line or in Word, Clue format).');
         return;
       }
 
+      // Filter words by grid size
+      const maxWordLength = gridSize - 2;
+      console.log(`CSV Import: Filtering words for ${gridSize}x${gridSize} grid (max length: ${maxWordLength})`);
+      const wordsFilteredBySize = words.filter(w => {
+        const word = w.toUpperCase().trim();
+        const isValid = word.length >= 4 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
+        if (!isValid) {
+          console.log(`CSV Import: Rejected "${word}" - length: ${word.length}, valid: ${/^[A-Z]+$/.test(word)}`);
+        }
+        return isValid;
+      });
+      console.log(`CSV Import: ${wordsFilteredBySize.length} words passed size filter (out of ${words.length})`);
+
+      if (wordsFilteredBySize.length === 0) {
+        // Show which words were rejected and why
+        const rejectedWords: Array<{ word: string; reason: string }> = [];
+        for (const word of words) {
+          const cleanWord = word.toUpperCase().trim();
+          if (cleanWord.length < 4) {
+            rejectedWords.push({ word: cleanWord, reason: `Too short (${cleanWord.length} letters, min: 4)` });
+          } else if (cleanWord.length > maxWordLength) {
+            rejectedWords.push({ word: cleanWord, reason: `Too long (${cleanWord.length} letters, max: ${maxWordLength})` });
+          } else if (!/^[A-Z]+$/.test(cleanWord)) {
+            rejectedWords.push({ word: cleanWord, reason: `Contains non-letter characters` });
+          }
+        }
+        
+        const rejectedSample = rejectedWords.slice(0, 10);
+        const rejectedText = rejectedSample.map(r => `  • "${r.word}" - ${r.reason}`).join('\n');
+        const moreText = rejectedWords.length > 10 ? `\n  ... and ${rejectedWords.length - 10} more` : '';
+        
+        alert(
+          `❌ No words fit the current grid size (${gridSize}x${gridSize}).\n\n` +
+          `All ${words.length} words were rejected:\n${rejectedText}${moreText}\n\n` +
+          `Try:\n` +
+          `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
+          `- Checking your CSV file format`
+        );
+        event.target.value = '';
+        return;
+      }
+
+      // Validate words if enabled
+      let finalWords = wordsFilteredBySize;
+      let invalidWords: string[] = [];
+      
+      if (enableWordValidation) {
+        alert(`Validating ${wordsFilteredBySize.length} words... This may take a moment.`);
+        const { valid, invalid } = await validateWords(wordsFilteredBySize, (validated, total) => {
+          console.log(`Validated ${validated}/${total} words...`);
+        });
+        finalWords = valid;
+        invalidWords = invalid;
+      }
+
+      if (finalWords.length === 0) {
+        alert('❌ No valid words found after validation. Please check your CSV file.');
+        event.target.value = '';
+        return;
+      }
+
       // Generate chapter title from filename (remove .csv extension)
       const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
+
+      // Build success message
+      let message = `✅ Successfully imported ${finalWords.length} word(s) from "${chapterTitle}"`;
+      const removedBySize = words.length - wordsFilteredBySize.length;
+      const removedByValidation = enableWordValidation ? wordsFilteredBySize.length - finalWords.length : 0;
+      
+      if (removedBySize > 0 || removedByValidation > 0) {
+        message += `\n\n⚠️ Removed:`;
+        if (removedBySize > 0) {
+          message += `\n- ${removedBySize} word(s) too long/short for ${gridSize}x${gridSize} grid`;
+        }
+        if (removedByValidation > 0) {
+          const invalidList = invalidWords.slice(0, 5).join(', ');
+          const moreText = invalidWords.length > 5 ? ` and ${invalidWords.length - 5} more` : '';
+          message += `\n- ${removedByValidation} invalid/incomplete word(s): ${invalidList}${moreText}`;
+        }
+      }
 
       // Initialize or update book structure
       if (!bookStructure) {
@@ -375,7 +536,7 @@ export default function Home() {
           bookTitle: 'Imported Puzzle Book',
           chapters: [{
             title: chapterTitle,
-            words: words
+            words: finalWords
           }]
         };
         setBookStructure(newStructure);
@@ -384,7 +545,7 @@ export default function Home() {
         const updated = { ...bookStructure };
         updated.chapters.push({
           title: chapterTitle,
-          words: words
+          words: finalWords
         });
         setBookStructure(updated);
       }
@@ -392,12 +553,12 @@ export default function Home() {
       // Clear file input
       event.target.value = '';
 
-      alert(`✅ Successfully imported ${words.length} words from "${chapterTitle}"`);
+      alert(message);
     } catch (error) {
       console.error('Error importing CSV:', error);
       alert(`❌ Failed to import CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [bookStructure]);
+  }, [bookStructure, gridSize, enableWordValidation]);
 
   // Handle multiple CSV files
   const handleMultipleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -412,23 +573,91 @@ export default function Home() {
     }
 
     try {
+      const maxWordLength = gridSize - 2;
       let newChapters: Chapter[] = [];
+      let totalWords = 0;
+      let totalRemovedBySize = 0;
+      let totalRemovedByValidation = 0;
+      
+      if (enableWordValidation) {
+        alert(`Importing and validating words from ${validFiles.length} file(s)... This may take a moment.`);
+      }
       
       for (const file of validFiles) {
         const text = await file.text();
         const { words } = parseCSV(text);
 
+        console.log(`CSV Import: Parsed ${words.length} words from file "${file.name}"`);
+        console.log(`CSV Import: Sample words:`, words.slice(0, 5));
+
         if (words.length > 0) {
-          const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
-          newChapters.push({
-            title: chapterTitle,
-            words: words
+          // Filter by grid size
+          console.log(`CSV Import: Filtering words for ${gridSize}x${gridSize} grid (max length: ${maxWordLength})`);
+          const wordsFilteredBySize = words.filter(w => {
+            const word = w.toUpperCase().trim();
+            const isValid = word.length >= 4 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
+            if (!isValid) {
+              console.log(`CSV Import: Rejected "${word}" - length: ${word.length}, valid: ${/^[A-Z]+$/.test(word)}`);
+            }
+            return isValid;
           });
+          console.log(`CSV Import: ${wordsFilteredBySize.length} words passed size filter (out of ${words.length})`);
+          
+          totalRemovedBySize += words.length - wordsFilteredBySize.length;
+          
+          // Validate words if enabled
+          let finalWords = wordsFilteredBySize;
+          if (enableWordValidation && wordsFilteredBySize.length > 0) {
+            const { valid, invalid } = await validateWords(wordsFilteredBySize);
+            finalWords = valid;
+            totalRemovedByValidation += invalid.length;
+          }
+
+          if (finalWords.length > 0) {
+            const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
+            newChapters.push({
+              title: chapterTitle,
+              words: finalWords
+            });
+            totalWords += finalWords.length;
+          }
         }
       }
 
       if (newChapters.length === 0) {
-        alert('No valid words found in any CSV files');
+        // Collect detailed rejection info for debugging
+        let allRejectedWords: Array<{ word: string; reason: string }> = [];
+        
+        for (const file of validFiles) {
+          const text = await file.text();
+          const { words } = parseCSV(text);
+          
+          for (const word of words) {
+            const cleanWord = word.toUpperCase().trim();
+            if (cleanWord.length < 4) {
+              allRejectedWords.push({ word: cleanWord, reason: `Too short (${cleanWord.length} letters, min: 4)` });
+            } else if (cleanWord.length > maxWordLength) {
+              allRejectedWords.push({ word: cleanWord, reason: `Too long (${cleanWord.length} letters, max: ${maxWordLength})` });
+            } else if (!/^[A-Z]+$/.test(cleanWord)) {
+              allRejectedWords.push({ word: cleanWord, reason: `Contains non-letter characters` });
+            }
+          }
+        }
+        
+        const rejectedSample = allRejectedWords.slice(0, 10);
+        const rejectedText = rejectedSample.map(r => `  • "${r.word}" - ${r.reason}`).join('\n');
+        const moreText = allRejectedWords.length > 10 ? `\n  ... and ${allRejectedWords.length - 10} more` : '';
+        
+        alert(
+          `❌ No valid words found in any CSV files.\n\n` +
+          `Grid: ${gridSize}x${gridSize} (max word length: ${maxWordLength} letters)\n\n` +
+          `Rejected words:\n${rejectedText}${moreText}\n\n` +
+          `Try:\n` +
+          `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
+          `- Checking your CSV file format\n` +
+          `- Disabling word validation if words are valid but not in dictionary`
+        );
+        event.target.value = '';
         return;
       }
 
@@ -448,12 +677,24 @@ export default function Home() {
       // Clear file input
       event.target.value = '';
 
-      alert(`✅ Successfully imported ${newChapters.length} chapter(s) from ${validFiles.length} CSV file(s)`);
+      // Build success message
+      let message = `✅ Successfully imported ${newChapters.length} chapter(s) with ${totalWords} word(s) from ${validFiles.length} CSV file(s)`;
+      if (totalRemovedBySize > 0 || totalRemovedByValidation > 0) {
+        message += `\n\n⚠️ Removed:`;
+        if (totalRemovedBySize > 0) {
+          message += `\n- ${totalRemovedBySize} word(s) too long/short for ${gridSize}x${gridSize} grid`;
+        }
+        if (totalRemovedByValidation > 0) {
+          message += `\n- ${totalRemovedByValidation} invalid/incomplete word(s)`;
+        }
+      }
+      
+      alert(message);
     } catch (error) {
       console.error('Error importing CSV files:', error);
       alert(`❌ Failed to import CSV files: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }, [bookStructure]);
+  }, [bookStructure, gridSize, enableWordValidation]);
 
   // Generate puzzles for all chapters
   const handleGeneratePuzzles = useCallback(() => {
@@ -489,14 +730,18 @@ export default function Home() {
             })
             .map(c => c.title);
           
+          const maxWordLength = gridSize - 2;
           alert(
             `Generated ${puzzles.filter(p => !('isBlank' in p)).length} puzzle(s) successfully.\n\n` +
             `${failedCount} puzzle(s) could not be generated:\n` +
             `${failedChapters.join(', ')}\n\n` +
-            `This is likely because the words are too long for a ${gridSize}x${gridSize} grid (max word length: ${gridSize - 2}).\n\n` +
+            `Possible reasons:\n` +
+            `- Words don't fit the ${gridSize}x${gridSize} grid (max word length: ${maxWordLength})\n` +
+            `- Puzzle generator couldn't place the words (try different difficulty or fewer words)\n\n` +
             `Try:\n` +
             `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
             `- Reducing words per puzzle (currently ${wordsPerPuzzle})\n` +
+            `- Changing difficulty level\n` +
             `- Or regenerate the book structure with shorter words`
           );
         }
@@ -522,8 +767,10 @@ export default function Home() {
       });
       
       if (validWords.length === 0) {
-        console.warn(`No valid words for chapter "${chapter.title}" - all ${wordsForPuzzle.length} words are too long for grid size ${gridSize}x${gridSize} (max word length: ${maxWordLength})`);
-        console.warn(`Words in chapter: ${wordsForPuzzle.map(w => `${w} (${w.length})`).join(', ')}`);
+        const wordLengths = wordsForPuzzle.map(w => `${w} (${w.length} letters)`).join(', ');
+        console.warn(`No valid words for chapter "${chapter.title}" - all ${wordsForPuzzle.length} words don't fit grid size ${gridSize}x${gridSize} (max word length: ${maxWordLength})`);
+        console.warn(`Words in chapter: ${wordLengths}`);
+        console.warn(`Note: Words should be between 4 and ${maxWordLength} letters for a ${gridSize}x${gridSize} grid`);
         setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
         setTimeout(() => generateNextPuzzle(index + 1), 10);
         return;
@@ -666,6 +913,15 @@ export default function Home() {
                   Upload CSV files with words (one per line or Word, Clue format). Each CSV becomes a chapter.
                 </p>
                 <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={enableWordValidation}
+                      onChange={(e) => setEnableWordValidation(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span>Validate words with dictionary (removes spelling errors)</span>
+                  </label>
                   <label className="block">
                     <input
                       type="file"
@@ -816,36 +1072,59 @@ export default function Home() {
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {bookStructure.chapters.map((chapter, index) => (
-                    <div key={index} className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''}`}>
-                      <div className="flex items-center gap-2 overflow-hidden flex-1">
-                        {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
-                        {editingChapterIndex === index ? (
-                          <input 
-                            autoFocus 
-                            value={editingTitle} 
-                            onChange={e => setEditingTitle(e.target.value)} 
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleSaveChapter(index);
-                              if (e.key === 'Escape') {
-                                setEditingChapterIndex(null);
-                                setEditingTitle('');
-                              }
-                            }}
-                            className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
+                    <div key={index}>
+                      <div className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''}`}>
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
+                          {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
+                          {editingChapterIndex === index ? (
+                            <input 
+                              autoFocus 
+                              value={editingTitle} 
+                              onChange={e => setEditingTitle(e.target.value)} 
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveChapter(index);
+                                if (e.key === 'Escape') {
+                                  setEditingChapterIndex(null);
+                                  setEditingTitle('');
+                                }
+                              }}
+                              className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
+                            />
+                          ) : (
+                            <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
+                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)`}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
+                          <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
+                          {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
+                          {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-1 text-slate-400 hover:text-green-400" title="Edit words"><Search className="h-3 w-3" /></button>}
+                          <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                        </div>
+                      </div>
+                      {editingWordsIndex === index && !chapter.isBlank && (
+                        <div className="mt-2 p-3 bg-slate-800 rounded border border-slate-700">
+                          <label className="block text-xs font-medium text-slate-300 mb-2">
+                            Edit Words for "{chapter.title}" (comma or newline separated)
+                          </label>
+                          <textarea
+                            autoFocus
+                            value={editingWords}
+                            onChange={e => setEditingWords(e.target.value)}
+                            placeholder="WORD1, WORD2, WORD3..."
+                            rows={4}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                           />
-                        ) : (
-                          <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
-                            {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)`}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
-                        <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
-                        {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400"><Edit2 className="h-3 w-3" /></button>}
-                        <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400"><Trash2 className="h-3 w-3" /></button>
-                      </div>
+                          <div className="flex gap-2 mt-2">
+                            <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">Save Words</Button>
+                            <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600 hover:bg-slate-700">Cancel</Button>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-2">Words will be automatically converted to uppercase. Only letters allowed (4+ characters).</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -876,6 +1155,42 @@ export default function Home() {
                   rows={3}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
+                <p className="text-xs text-slate-400 mt-2">Enter words separated by commas or newlines. Words will be converted to uppercase.</p>
+              </div>
+            )}
+
+            {/* Generated Words Editor (Single Mode) */}
+            {mode === 'single' && generatedWords.length > 0 && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Generated Words (Editable)
+                </label>
+                <textarea
+                  value={generatedWords.join(', ')}
+                  onChange={(e) => {
+                    const words = e.target.value
+                      .split(/[,\n]/)
+                      .map(w => w.trim().toUpperCase())
+                      .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
+                    setGeneratedWords(words);
+                    if (words.length > 0) {
+                      const maxWordLength = gridSize - 2;
+                      const validWords = words.filter(w => w.length <= maxWordLength);
+                      if (validWords.length > 0) {
+                        try {
+                          const result = generatePuzzle(validWords.slice(0, singleWords), gridSize, difficulty);
+                          setPuzzle(result);
+                        } catch (error) {
+                          console.error('Error generating puzzle:', error);
+                        }
+                      }
+                    }
+                  }}
+                  placeholder="WORD1, WORD2, WORD3..."
+                  rows={6}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <p className="text-xs text-slate-400 mt-2">Edit words here. Puzzle will auto-update when you make changes. Words must be 4+ letters, only A-Z.</p>
               </div>
             )}
 
@@ -981,6 +1296,25 @@ export default function Home() {
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
+            </div>
+
+            {/* Word Validation Toggle */}
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Word Validation
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={enableWordValidation}
+                  onChange={(e) => setEnableWordValidation(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span>Validate words with dictionary (removes spelling errors)</span>
+              </label>
+              <p className="text-xs text-slate-400 mt-2">
+                When enabled, words are checked against a dictionary API to remove spelling errors and incomplete words. Applies to all modes (Book, Single, CSV Import).
+              </p>
             </div>
 
             {/* Generate Button (Single Mode) */}
@@ -1098,6 +1432,9 @@ export default function Home() {
                             'lora-bold': 'Lora, serif',
                             'playfair-display': '"Playfair Display", serif',
                             'playfair-display-bold': '"Playfair Display", serif',
+                            'playpen-sans': '"Playpen Sans", cursive',
+                            'playpen-sans-bold': '"Playpen Sans", cursive',
+                            'schoolbell': '"Schoolbell", cursive',
                           };
                           fontFamily = fontMap[font.id] || 'inherit';
                         }
@@ -1192,6 +1529,9 @@ export default function Home() {
                             'lora-bold': 'Lora, serif',
                             'playfair-display': '"Playfair Display", serif',
                             'playfair-display-bold': '"Playfair Display", serif',
+                            'playpen-sans': '"Playpen Sans", cursive',
+                            'playpen-sans-bold': '"Playpen Sans", cursive',
+                            'schoolbell': '"Schoolbell", cursive',
                           };
                           fontFamily = fontMap[font.id] || 'inherit';
                         }
