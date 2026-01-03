@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload } from 'lucide-react';
+import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
-import PDFDownloadButton from '@/components/PDFDownloadButton';
+import PDFDownloadButton, { PDFPageItem } from '@/components/PDFDownloadButton';
 import PDFPreviewModal from '@/components/PDFPreviewModal';
 import { Button } from '@/components/ui/button';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
@@ -13,9 +13,22 @@ import { AVAILABLE_FONTS } from '@/lib/fonts';
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
 
+// KDP Standard Sizes
+const PAGE_SIZES = [
+  { name: '5 x 8 in', width: 5, height: 8 },
+  { name: '5.25 x 8 in', width: 5.25, height: 8 },
+  { name: '5.5 x 8.5 in', width: 5.5, height: 8.5 },
+  { name: '6 x 9 in (Standard KDP)', width: 6, height: 9 },
+  { name: '7 x 10 in', width: 7, height: 10 },
+  { name: '8.5 x 8.5 in (Square)', width: 8.5, height: 8.5 },
+  { name: '8.5 x 11 in (Letter)', width: 8.5, height: 11 },
+  { name: '8.27 x 11.69 in (A4)', width: 8.27, height: 11.69 },
+];
+
 interface Chapter {
   title: string;
   words: string[];
+  isBlank?: boolean; // New Flag
 }
 
 interface BookStructure {
@@ -45,19 +58,24 @@ export default function Home() {
   // Generated data
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
   const [puzzle, setPuzzle] = useState<PuzzleResult | null>(null);
-  const [bookPuzzles, setBookPuzzles] = useState<Array<PuzzleResult & { chapterTitle: string }>>([]);
+  const [bookPuzzles, setBookPuzzles] = useState<PDFPageItem[]>([]);
   const [isGeneratingWords, setIsGeneratingWords] = useState(false);
   const [isGeneratingStructure, setIsGeneratingStructure] = useState(false);
   const [isGeneratingPuzzle, setIsGeneratingPuzzle] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
   const [structureProgress, setStructureProgress] = useState({ current: 0, total: 0, status: '' });
   
+  // Page Settings
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[6]); // Default Letter
+  const [customPageSize, setCustomPageSize] = useState({ width: 8.5, height: 11 });
+  const [isCustomSize, setIsCustomSize] = useState(false);
+  
   // PDF front matter options
   const [includeTitlePage, setIncludeTitlePage] = useState(false);
   const [includeBelongsToPage, setIncludeBelongsToPage] = useState(false);
   const [copyrightText, setCopyrightText] = useState('');
   const [selectedFont, setSelectedFont] = useState('helvetica');
-  const [fontSize, setFontSize] = useState(1.0); // Font size multiplier (1.0 = 100%, 1.2 = 120%, etc.)
+  const [fontSize, setFontSize] = useState(10); // Font size in points (like MS Word/Google Docs)
 
   // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
@@ -249,15 +267,43 @@ export default function Home() {
 
   // Delete chapter
   const handleDeleteChapter = (index: number) => {
-    if (bookStructure && confirm(`Delete chapter "${bookStructure.chapters[index].title}"?`)) {
-      const updated = { ...bookStructure };
-      updated.chapters.splice(index, 1);
-      setBookStructure(updated);
-      // Regenerate puzzles if they exist
-      if (bookPuzzles.length > 0) {
+    if (bookStructure) {
+      const chapter = bookStructure.chapters[index];
+      const isBlank = chapter.isBlank;
+      if (confirm(isBlank ? "Remove this blank page?" : `Delete chapter "${chapter.title}"?`)) {
+        const updated = { ...bookStructure };
+        updated.chapters.splice(index, 1);
+        setBookStructure(updated);
         setBookPuzzles([]);
       }
     }
+  };
+
+  // NEW: Add Blank Page
+  const handleAddBlankPage = () => {
+    if (!bookStructure) {
+      setBookStructure({ bookTitle: 'My Puzzle Book', chapters: [] });
+    }
+    setBookStructure(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        chapters: [...prev.chapters, { title: 'Blank Page', words: [], isBlank: true }]
+      };
+    });
+  };
+
+  // NEW: Move Chapter
+  const moveChapter = (index: number, direction: 'up' | 'down') => {
+    if (!bookStructure) return;
+    const newChapters = [...bookStructure.chapters];
+    if (direction === 'up' && index > 0) {
+      [newChapters[index], newChapters[index - 1]] = [newChapters[index - 1], newChapters[index]];
+    } else if (direction === 'down' && index < newChapters.length - 1) {
+      [newChapters[index], newChapters[index + 1]] = [newChapters[index + 1], newChapters[index]];
+    }
+    setBookStructure({ ...bookStructure, chapters: newChapters });
+    setBookPuzzles([]); // Reset puzzles as order changed
   };
 
   // Parse CSV file content
@@ -420,7 +466,7 @@ export default function Home() {
     setGenerationProgress({ current: 0, total: bookStructure.chapters.length });
     setBookPuzzles([]);
 
-    const puzzles: Array<PuzzleResult & { chapterTitle: string }> = [];
+    const puzzles: PDFPageItem[] = [];
 
     const generateNextPuzzle = (index: number) => {
       if (index >= bookStructure!.chapters.length) {
@@ -429,14 +475,22 @@ export default function Home() {
         setGenerationProgress({ current: 0, total: 0 });
         
         // Show summary if some puzzles failed
-        const failedCount = bookStructure!.chapters.length - puzzles.length;
+        const realChapters = bookStructure!.chapters.filter(c => !c.isBlank);
+        const failedCount = realChapters.length - puzzles.filter(p => !('isBlank' in p)).length;
         if (failedCount > 0) {
-          const failedChapters = bookStructure!.chapters
-            .filter((_, idx) => !puzzles.some(p => p.chapterTitle === bookStructure!.chapters[idx].title))
+          const failedChapters = realChapters
+            .filter((_, idx) => {
+              const chapterIndex = bookStructure!.chapters.findIndex(c => c === realChapters[idx]);
+              return !puzzles.some((p, pIdx) => {
+                if ('isBlank' in p) return false;
+                const puzzleChapterIndex = bookStructure!.chapters.findIndex(c => c.title === (p as PuzzleResult & { chapterTitle?: string }).chapterTitle);
+                return puzzleChapterIndex === chapterIndex;
+              });
+            })
             .map(c => c.title);
           
           alert(
-            `Generated ${puzzles.length} puzzle(s) successfully.\n\n` +
+            `Generated ${puzzles.filter(p => !('isBlank' in p)).length} puzzle(s) successfully.\n\n` +
             `${failedCount} puzzle(s) could not be generated:\n` +
             `${failedChapters.join(', ')}\n\n` +
             `This is likely because the words are too long for a ${gridSize}x${gridSize} grid (max word length: ${gridSize - 2}).\n\n` +
@@ -450,9 +504,17 @@ export default function Home() {
       }
 
       const chapter = bookStructure!.chapters[index];
-      const wordsForPuzzle = chapter.words.slice(0, wordsPerPuzzle);
 
-      // Validate words fit in grid
+      // Handle Blank Page
+      if (chapter.isBlank) {
+        puzzles.push({ isBlank: true, chapterTitle: 'Blank Page' });
+        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setTimeout(() => generateNextPuzzle(index + 1), 5); // Fast forward
+        return;
+      }
+
+      // Normal Puzzle Generation logic...
+      const wordsForPuzzle = chapter.words.slice(0, wordsPerPuzzle);
       const maxWordLength = gridSize - 2;
       const validWords = wordsForPuzzle.filter(w => {
         const word = w.toUpperCase().trim();
@@ -472,7 +534,7 @@ export default function Home() {
       }
 
       try {
-        const result = generatePuzzle(validWords, gridSize, difficulty);
+        const result = generatePuzzle(validWords.length > 0 ? validWords : ['PUZZLE'], gridSize, difficulty);
         
         // Check if we got a reasonable number of placed words
         if (result.placedWords.length === 0) {
@@ -542,6 +604,7 @@ export default function Home() {
     }
   }, [generatedWords, customWords, gridSize, difficulty, mode, singleWords]);
 
+  // Display logic: Handle blank pages in preview
   const displayPuzzle = mode === 'book' && bookPuzzles.length > 0 
     ? bookPuzzles[0] 
     : puzzle;
@@ -688,24 +751,80 @@ export default function Home() {
               </div>
             )}
 
+            {/* Page Size Selector (Book Mode) */}
+            {mode === 'book' && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-2">Page Size (PDF)</label>
+                <select 
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setIsCustomSize(true);
+                    } else {
+                      setIsCustomSize(false);
+                      const size = PAGE_SIZES.find(s => s.name === e.target.value);
+                      if (size) setPageSize(size);
+                    }
+                  }}
+                  value={isCustomSize ? 'custom' : pageSize.name}
+                >
+                  {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                  <option value="custom">Custom Size...</option>
+                </select>
+                
+                {isCustomSize && (
+                  <div className="flex gap-2 items-center">
+                    <input 
+                      type="number" 
+                      className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100" 
+                      placeholder="W" 
+                      step="0.1"
+                      value={customPageSize.width}
+                      onChange={e => {
+                        const w = parseFloat(e.target.value);
+                        setCustomPageSize(p => ({ ...p, width: w }));
+                        setPageSize({ ...pageSize, width: w });
+                      }}
+                    />
+                    <span className="text-slate-500">x</span>
+                    <input 
+                      type="number" 
+                      className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100" 
+                      placeholder="H" 
+                      step="0.1"
+                      value={customPageSize.height}
+                      onChange={e => {
+                        const h = parseFloat(e.target.value);
+                        setCustomPageSize(p => ({ ...p, height: h }));
+                        setPageSize({ ...pageSize, height: h });
+                      }}
+                    />
+                    <span className="text-sm text-slate-400">in</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Chapter Management (Book Mode) */}
             {mode === 'book' && bookStructure && !isGeneratingStructure && (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-slate-300">
-                    Chapters ({bookStructure.chapters.length})
-                  </label>
+                  <label className="block text-sm font-medium text-slate-300">Pages ({bookStructure.chapters.length})</label>
+                  <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-slate-600 hover:bg-slate-800">
+                    <FilePlus className="h-3 w-3 mr-1" /> Add Empty Page
+                  </Button>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {bookStructure.chapters.map((chapter, index) => (
-                    <div key={index} className="bg-slate-800 rounded p-2 flex items-center justify-between group">
-                      {editingChapterIndex === index ? (
-                        <div className="flex-1 flex gap-1">
-                          <input
-                            type="text"
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onKeyDown={(e) => {
+                    <div key={index} className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''}`}>
+                      <div className="flex items-center gap-2 overflow-hidden flex-1">
+                        {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
+                        {editingChapterIndex === index ? (
+                          <input 
+                            autoFocus 
+                            value={editingTitle} 
+                            onChange={e => setEditingTitle(e.target.value)} 
+                            onKeyDown={e => {
                               if (e.key === 'Enter') handleSaveChapter(index);
                               if (e.key === 'Escape') {
                                 setEditingChapterIndex(null);
@@ -713,38 +832,20 @@ export default function Home() {
                               }
                             }}
                             className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
-                            autoFocus
                           />
-                          <button
-                            onClick={() => handleSaveChapter(index)}
-                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="text-sm text-slate-300 flex-1 truncate">
-                            {index + 1}. {chapter.title} ({chapter.words.length} words)
+                        ) : (
+                          <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
+                            {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)`}
                           </span>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleEditChapter(index)}
-                              className="p-1 text-slate-400 hover:text-blue-400"
-                              title="Edit"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteChapter(index)}
-                              className="p-1 text-slate-400 hover:text-red-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </>
-                      )}
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
+                        <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
+                        {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400"><Edit2 className="h-3 w-3" /></button>}
+                        <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400"><Trash2 className="h-3 w-3" /></button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1017,21 +1118,21 @@ export default function Home() {
                   {/* Font Size */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
-                      Font Size ({Math.round(fontSize * 100)}%)
+                      Grid Letter Size ({fontSize}pt)
                     </label>
                     <input
                       type="range"
-                      min="0.7"
-                      max="2.0"
-                      step="0.05"
+                      min="4"
+                      max="20"
+                      step="1"
                       value={fontSize}
-                      onChange={(e) => setFontSize(parseFloat(e.target.value))}
+                      onChange={(e) => setFontSize(parseInt(e.target.value))}
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>70%</span>
-                      <span>100%</span>
-                      <span>200%</span>
+                      <span>4pt</span>
+                      <span>12pt</span>
+                      <span>20pt</span>
                     </div>
                   </div>
                 </div>
@@ -1045,6 +1146,7 @@ export default function Home() {
                     copyrightText={copyrightText}
                     fontId={selectedFont}
                     fontSize={fontSize}
+                    pageFormat={pageSize}
                   />
                   <PDFDownloadButton
                     puzzles={bookPuzzles}
@@ -1054,6 +1156,7 @@ export default function Home() {
                     copyrightText={copyrightText}
                     fontId={selectedFont}
                     fontSize={fontSize}
+                    pageFormat={pageSize}
                   />
                 </div>
               </>
@@ -1109,21 +1212,21 @@ export default function Home() {
                   {/* Font Size */}
                   <div className="mt-3">
                     <label className="block text-xs text-slate-400 mb-1">
-                      Font Size ({Math.round(fontSize * 100)}%)
+                      Grid Letter Size ({fontSize}pt)
                     </label>
                     <input
                       type="range"
-                      min="0.7"
-                      max="2.0"
-                      step="0.05"
+                      min="4"
+                      max="20"
+                      step="1"
                       value={fontSize}
-                      onChange={(e) => setFontSize(parseFloat(e.target.value))}
+                      onChange={(e) => setFontSize(parseInt(e.target.value))}
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>70%</span>
-                      <span>100%</span>
-                      <span>200%</span>
+                      <span>4pt</span>
+                      <span>12pt</span>
+                      <span>20pt</span>
                     </div>
                   </div>
                 </div>
@@ -1133,12 +1236,14 @@ export default function Home() {
                     title={`Word Search - ${theme || 'Puzzle'}`}
                     fontId={selectedFont}
                     fontSize={fontSize}
+                    pageFormat={{ width: 8.5, height: 11 }}
                   />
                   <PDFDownloadButton
                     puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
                     title={`Word Search - ${theme || 'Puzzle'}`}
                     fontId={selectedFont}
                     fontSize={fontSize}
+                    pageFormat={{ width: 8.5, height: 11 }}
                   />
                 </div>
               </>
@@ -1148,14 +1253,24 @@ export default function Home() {
           {/* Right Side - Preview */}
           <main className="overflow-hidden">
             {displayPuzzle ? (
-              <PuzzlePreview
-                grid={displayPuzzle.grid}
-                placedWords={displayPuzzle.placedWords}
-                title={mode === 'book' && 'chapterTitle' in displayPuzzle
-                  ? `${displayPuzzle.chapterTitle} - Puzzle ${bookPuzzles.findIndex(p => p === displayPuzzle) + 1} of ${bookPuzzles.length}`
-                  : theme || 'Word Search Puzzle'
-                }
-              />
+              'isBlank' in displayPuzzle ? (
+                <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
+                  <div className="text-center">
+                    <File className="h-16 w-16 mx-auto mb-2 text-slate-300" />
+                    <p>Blank Page</p>
+                    <p className="text-xs mt-1">(Will be empty in PDF)</p>
+                  </div>
+                </div>
+              ) : (
+                <PuzzlePreview
+                  grid={(displayPuzzle as PuzzleResult).grid}
+                  placedWords={(displayPuzzle as PuzzleResult).placedWords}
+                  title={mode === 'book' && 'chapterTitle' in displayPuzzle
+                    ? `${displayPuzzle.chapterTitle} - Puzzle ${bookPuzzles.findIndex(p => p === displayPuzzle) + 1} of ${bookPuzzles.length}`
+                    : theme || 'Word Search Puzzle'
+                  }
+                />
+              )
             ) : mode === 'book' && bookStructure ? (
               <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800">
                 <div className="text-center">

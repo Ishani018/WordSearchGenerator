@@ -15,6 +15,7 @@ export default function PDFPreviewModal(props: PDFDownloadButtonProps) {
     setIsOpen(true);
     
     try {
+      // Pass all props including the new pageFormat
       const doc = await generatePDFDoc(props);
       const blob = doc.output('blob');
       const url = URL.createObjectURL(blob);
@@ -57,9 +58,8 @@ export default function PDFPreviewModal(props: PDFDownloadButtonProps) {
             className="relative w-[90vw] h-[90vh] bg-white rounded-lg shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b bg-slate-50">
-              <h2 className="text-lg font-semibold text-slate-900">PDF Preview</h2>
+              <h2 className="text-lg font-semibold text-slate-900">PDF Preview - {props.pageFormat.width}" x {props.pageFormat.height}"</h2>
               <button
                 onClick={handleClose}
                 className="p-2 hover:bg-slate-200 rounded-full transition-colors"
@@ -68,20 +68,16 @@ export default function PDFPreviewModal(props: PDFDownloadButtonProps) {
                 <X className="h-5 w-5 text-slate-600" />
               </button>
             </div>
-
-            {/* PDF Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden bg-slate-100 p-4 flex items-center justify-center">
               {isGenerating ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600">Generating PDF preview...</p>
-                  </div>
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                  <p className="text-slate-600">Generating PDF preview...</p>
                 </div>
               ) : pdfUrl ? (
                 <iframe
                   src={pdfUrl}
-                  className="w-full h-full border-0"
+                  className="w-full h-full border-0 shadow-lg"
                   title="PDF Preview"
                 />
               ) : null}
@@ -92,4 +88,3 @@ export default function PDFPreviewModal(props: PDFDownloadButtonProps) {
     </>
   );
 }
-
