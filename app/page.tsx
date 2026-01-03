@@ -10,6 +10,8 @@ import PDFPreviewModal from '@/components/PDFPreviewModal';
 import { Button } from '@/components/ui/button';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
 import { validateWords } from '@/lib/word-validator';
+import LoginForm from '@/components/LoginForm';
+import { isAuthenticated as checkAuthStatus, setAuthenticated } from '@/lib/auth';
 
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -38,6 +40,11 @@ interface BookStructure {
 }
 
 export default function Home() {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticatedState] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // App state (declared before auth check)
   const [mode, setMode] = useState<Mode>('book');
   const [theme, setTheme] = useState('');
   const [customWords, setCustomWords] = useState('');
@@ -80,6 +87,26 @@ export default function Home() {
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(10); // Font size in points (like MS Word/Google Docs)
   const [enableWordValidation, setEnableWordValidation] = useState(true); // Enable dictionary validation
+
+  // Authentication handlers
+  const handleLogin = () => {
+    setIsAuthenticatedState(true);
+  };
+
+  const handleLogout = () => {
+    setAuthenticated(false);
+    setIsAuthenticatedState(false);
+  };
+
+  // Check authentication on mount
+  useEffect(() => {
+    const verifyAuth = () => {
+      const authStatus = checkAuthStatus();
+      setIsAuthenticatedState(authStatus);
+      setIsCheckingAuth(false);
+    };
+    verifyAuth();
+  }, []);
 
   // Generate book structure (topic expansion) - now handles word generation on client side
   const handleGenerateStructure = useCallback(async () => {
@@ -851,6 +878,20 @@ export default function Home() {
     }
   }, [generatedWords, customWords, gridSize, difficulty, mode, singleWords]);
 
+  // Show loading state while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
+
   // Display logic: Handle blank pages in preview
   const displayPuzzle = mode === 'book' && bookPuzzles.length > 0 
     ? bookPuzzles[0] 
@@ -859,7 +900,18 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm relative">
+        {/* Logout Button */}
+        <div className="absolute top-4 right-4 z-10">
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="border-slate-600 hover:bg-slate-800 text-slate-300"
+          >
+            Logout
+          </Button>
+        </div>
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BookOpen className="h-6 w-6 text-blue-400" />
@@ -1250,8 +1302,8 @@ export default function Home() {
                   />
                   <p className="text-xs text-slate-400 mt-1">
                     Number of chapters/sub-themes to generate
-                  </p>
-                </div>
+          </p>
+        </div>
                 <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Words per Puzzle
@@ -1340,7 +1392,7 @@ export default function Home() {
                     <span className="text-xs text-slate-400 font-semibold">
                       {Math.round((generationProgress.current / generationProgress.total) * 100)}%
                     </span>
-                  </div>
+        </div>
                   <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
                     <div 
                       className="bg-green-600 h-3 rounded-full transition-all duration-200 ease-out"
@@ -1631,7 +1683,7 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </main>
+      </main>
         </div>
       </div>
     </div>
