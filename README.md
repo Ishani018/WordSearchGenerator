@@ -101,12 +101,18 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
 
 # Authentication Credentials
+<<<<<<< HEAD
 # IMPORTANT: Do NOT use NEXT_PUBLIC_ prefix for passwords (they would be exposed to client)
 # Passwords are validated server-side only - never exposed to browser JavaScript
 ADMIN_USERNAME=Admin
 ADMIN_PASSWORD=your_admin_password_here
 SAMPA_USERNAME=Sampa
 SAMPA_PASSWORD=your_sampa_password_here
+=======
+# Set these to secure passwords for your application
+NEXT_PUBLIC_USERNAME=Username
+NEXT_PUBLIC_PASSWORD=your_password
+>>>>>>> 2f199bdf2575b1c2fac7a896b8e9a1781c286bbd
 ```
 
 **Important**: Never commit `.env.local` to version control. It's already in `.gitignore`.
