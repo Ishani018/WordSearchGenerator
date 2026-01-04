@@ -190,7 +190,8 @@ export async function generatePDFDoc({
         pageHeight, 
         margin, 
         fontName, 
-        fontSize
+        fontSize,
+        copyrightText
       );
     }
   }
@@ -298,7 +299,8 @@ function drawPuzzlePage(
   margin: number,
   pageNum: number,
   fontName?: string,
-  fontSize: number = 10 // Font size in points for grid letters
+  fontSize: number = 10, // Font size in points for grid letters
+  copyrightText?: string
 ) {
   const getFont = (defaultFont: string = 'helvetica') => {
     if (fontName && defaultFont !== 'courier') {
@@ -481,7 +483,16 @@ function drawPuzzlePage(
   // Footer (fontSize only affects grid letters)
   doc.setFontSize(8);
   doc.setFont(getFont('helvetica'), 'normal');
-  doc.text(`Page ${pageNum}`, pageWidth / 2, pageHeight - margin + 0.1, { align: 'center' });
+  const footerY = pageHeight - margin + 0.1;
+  doc.text(`Page ${pageNum}`, pageWidth / 2, footerY, { align: 'center' });
+  
+  // Copyright text on all pages (if provided)
+  if (copyrightText) {
+    doc.setFontSize(7);
+    doc.setFont(getFont('helvetica'), 'italic');
+    const currentYear = new Date().getFullYear();
+    doc.text(`© ${currentYear} ${copyrightText}`, pageWidth / 2, footerY + 0.15, { align: 'center' });
+  }
 }
 
 function drawSolutionsPage(
@@ -495,7 +506,8 @@ function drawSolutionsPage(
   pageHeight: number,
   margin: number,
   fontName?: string,
-  fontSize: number = 10 // Font size in points for grid letters
+  fontSize: number = 10, // Font size in points for grid letters
+  copyrightText?: string
 ) {
   const getFont = (defaultFont: string = 'helvetica') => {
     if (fontName && defaultFont !== 'courier') {

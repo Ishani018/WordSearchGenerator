@@ -96,6 +96,7 @@ export default function Home() {
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(10); // Font size in points (like MS Word/Google Docs)
   const [enableWordValidation, setEnableWordValidation] = useState(true); // Enable dictionary validation
+  const [addBlankPagesBetweenChapters, setAddBlankPagesBetweenChapters] = useState(false);
 
   // Authentication handlers
   const handleLogin = () => {
@@ -967,6 +968,16 @@ export default function Home() {
           ...result,
           chapterTitle: chapter.title,
         });
+        
+        // Add blank page after this chapter if option is enabled and not the last chapter
+        if (addBlankPagesBetweenChapters && index < bookStructure!.chapters.length - 1) {
+          // Check if next chapter is not blank (don't add blank page if next is already blank)
+          const nextChapter = bookStructure!.chapters[index + 1];
+          if (!nextChapter.isBlank) {
+            puzzles.push({ isBlank: true, chapterTitle: 'Blank Page' });
+          }
+        }
+        
         setGenerationProgress({ current: puzzles.length, total: bookStructure!.chapters.length });
         
         setTimeout(() => generateNextPuzzle(index + 1), 10);
@@ -979,7 +990,7 @@ export default function Home() {
     };
 
     generateNextPuzzle(0);
-  }, [bookStructure, wordsPerPuzzle, gridSize, difficulty]);
+  }, [bookStructure, wordsPerPuzzle, gridSize, difficulty, addBlankPagesBetweenChapters]);
 
   // Generate single puzzle
   const handleGenerateSinglePuzzle = useCallback(() => {
@@ -1353,17 +1364,28 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <Button
-                  onClick={handleGeneratePuzzles}
-                  disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
-                  className="w-full mt-3 bg-green-600 hover:bg-green-700"
-                  size="sm"
-                >
-                  {isGeneratingPuzzle 
-                    ? `Generating... ${generationProgress.current}/${generationProgress.total}`
-                    : 'Generate Pages'
-                  }
-                </Button>
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={addBlankPagesBetweenChapters}
+                      onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span>Add blank pages between chapters</span>
+                  </label>
+                  <Button
+                    onClick={handleGeneratePuzzles}
+                    disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    size="sm"
+                  >
+                    {isGeneratingPuzzle 
+                      ? `Generating... ${generationProgress.current}/${generationProgress.total}`
+                      : 'Generate Pages'
+                    }
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1430,9 +1452,15 @@ export default function Home() {
                           <span className="text-xs text-slate-400 mt-0.5">{index + 1}.</span>
                           <span className="flex-1 text-sm text-slate-200">{title}</span>
                           <button
-                            onClick={() => handleCopyToClipboard(title, `title-${index}`)}
+                            onClick={() => {
+                              handleCopyToClipboard(title, `title-${index}`);
+                              // Also update book title
+                              if (bookStructure) {
+                                setBookStructure({ ...bookStructure, bookTitle: title });
+                              }
+                            }}
                             className="p-1 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
-                            title="Copy this title"
+                            title="Copy and use as book title"
                           >
                             {copiedText === `title-${index}` ? (
                               <Check className="h-3 w-3 text-green-400" />
