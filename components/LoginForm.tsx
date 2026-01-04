@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Lock, User, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { validateCredentials, setAuthenticated } from '@/lib/auth';
+import { login } from '@/lib/auth-client';
 
 interface LoginFormProps {
   onLogin: () => void;
@@ -23,12 +23,13 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     // Small delay to prevent brute force
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    if (validateCredentials(username, password)) {
-      setAuthenticated(true);
+    const result = await login(username, password);
+    
+    if (result.success) {
       setIsLoading(false);
       onLogin();
     } else {
-      setError('Invalid username or password');
+      setError(result.error || 'Invalid username or password');
       setPassword('');
       setIsLoading(false);
     }

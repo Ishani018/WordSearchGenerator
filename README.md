@@ -101,11 +101,12 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
 
 # Authentication Credentials
-# Set these to secure passwords for your application
-NEXT_PUBLIC_ADMIN_USERNAME=Admin
-NEXT_PUBLIC_ADMIN_PASSWORD=your_admin_password_here
-NEXT_PUBLIC_SAMPA_USERNAME=Sampa
-NEXT_PUBLIC_SAMPA_PASSWORD=your_sampa_password_here
+# IMPORTANT: Do NOT use NEXT_PUBLIC_ prefix for passwords (they would be exposed to client)
+# Passwords are validated server-side only - never exposed to browser JavaScript
+ADMIN_USERNAME=Admin
+ADMIN_PASSWORD=your_admin_password_here
+SAMPA_USERNAME=Sampa
+SAMPA_PASSWORD=your_sampa_password_here
 ```
 
 **Important**: Never commit `.env.local` to version control. It's already in `.gitignore`.
@@ -247,16 +248,72 @@ Word generation API:
 
 ## 🔐 Authentication
 
-The application uses a simple client-side authentication system:
+The application uses a secure server-side authentication system:
 
-- **Credentials**: Stored in environment variables
-- **Storage**: Uses localStorage for session persistence
-- **Users**: Configurable via `NEXT_PUBLIC_*` environment variables
-- **Security**: Passwords never exposed in code (env-only)
+- **Server-Side Validation**: All password validation happens on the server via API routes
+- **HTTP-Only Cookies**: Session tokens stored in secure, HTTP-only cookies (not accessible via JavaScript)
+- **Credentials**: Stored in server-only environment variables (no `NEXT_PUBLIC_` prefix for passwords)
+- **Security**: Passwords never exposed to client-side JavaScript bundle
+- **Session Management**: Uses secure cookies with proper flags (httpOnly, secure, sameSite)
 
-To add/modify users, edit `lib/auth.ts` or update environment variables.
+**Environment Variables:**
+- `ADMIN_USERNAME` - Admin username (can be public)
+- `ADMIN_PASSWORD` - Admin password (server-only, never exposed)
+- `SAMPA_USERNAME` - Sampa username (can be public)
+- `SAMPA_PASSWORD` - Sampa password (server-only, never exposed)
+
+**API Routes:**
+- `POST /api/auth` - Login endpoint (validates credentials server-side)
+- `GET /api/auth` - Check authentication status
+- `DELETE /api/auth` - Logout endpoint (clears session)
+
+To add/modify users, update environment variables in `.env.local`.
 
 ## 📊 API Routes
+
+### `POST /api/auth`
+
+Authenticates a user and creates a session.
+
+**Request Body:**
+```typescript
+{
+  username: string;
+  password: string;
+}
+```
+
+**Response:**
+```typescript
+{
+  success: boolean;
+  error?: string;
+}
+```
+
+Sets an HTTP-only cookie on success.
+
+### `GET /api/auth`
+
+Checks if the current user is authenticated.
+
+**Response:**
+```typescript
+{
+  authenticated: boolean;
+}
+```
+
+### `DELETE /api/auth`
+
+Logs out the current user by clearing the session cookie.
+
+**Response:**
+```typescript
+{
+  success: boolean;
+}
+```
 
 ### `POST /api/generate-words`
 
@@ -437,18 +494,23 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 Ensure all environment variables from `.env.local` are set in your hosting platform:
 - `GROQ_API_KEY`
 - `GROQ_MODEL` (optional)
-- `NEXT_PUBLIC_ADMIN_USERNAME`
-- `NEXT_PUBLIC_ADMIN_PASSWORD`
-- `NEXT_PUBLIC_SAMPA_USERNAME`
-- `NEXT_PUBLIC_SAMPA_PASSWORD`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD` (server-only, never use `NEXT_PUBLIC_` prefix)
+- `SAMPA_USERNAME`
+- `SAMPA_PASSWORD` (server-only, never use `NEXT_PUBLIC_` prefix)
 
 ## 🔒 Security Considerations
 
 - **API Keys**: Never commit API keys to version control
-- **Authentication**: Passwords stored in environment variables only
+- **Authentication**: 
+  - Passwords stored in server-only environment variables (no `NEXT_PUBLIC_` prefix)
+  - All password validation happens server-side via API routes
+  - Session tokens stored in HTTP-only cookies (not accessible via JavaScript)
+  - Never expose passwords in client-side code
 - **Client-Side**: Most logic runs client-side; sensitive operations use API routes
 - **Rate Limiting**: Built-in rate limiting for external API calls
 - **CORS**: Dictionary API calls proxied through Next.js to avoid CORS issues
+- **Session Security**: Cookies use `httpOnly`, `secure`, and `sameSite` flags
 
 ## 📝 Development
 

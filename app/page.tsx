@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File } from 'lucide-react';
+import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
 import { validateWords } from '@/lib/word-validator';
 import LoginForm from '@/components/LoginForm';
-import { isAuthenticated as checkAuthStatus, setAuthenticated } from '@/lib/auth';
+import { checkAuthStatus, logout as logoutClient } from '@/lib/auth-client';
 import { useAlert } from '@/lib/alert';
 import { useToast } from '@/components/ui/toast';
 import InstructionsPanel from '@/components/InstructionsPanel';
@@ -67,6 +67,11 @@ export default function Home() {
   const [editingTitle, setEditingTitle] = useState('');
   const [editingWordsIndex, setEditingWordsIndex] = useState<number | null>(null);
   const [editingWords, setEditingWords] = useState<string>('');
+  const [kdpDescription, setKdpDescription] = useState<string | null>(null);
+  const [kdpTitles, setKdpTitles] = useState<string[] | null>(null);
+  const [isGeneratingKdpContent, setIsGeneratingKdpContent] = useState(false);
+  const [kdpContentType, setKdpContentType] = useState<'description' | 'titles' | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   
   // Generated data
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
@@ -97,17 +102,23 @@ export default function Home() {
     setIsAuthenticatedState(true);
   };
 
-  const handleLogout = () => {
-    setAuthenticated(false);
+  const handleLogout = async () => {
+    await logoutClient();
     setIsAuthenticatedState(false);
   };
 
   // Check authentication on mount
   useEffect(() => {
-    const verifyAuth = () => {
-      const authStatus = checkAuthStatus();
-      setIsAuthenticatedState(authStatus);
-      setIsCheckingAuth(false);
+    const verifyAuth = async () => {
+      try {
+        const authStatus = await checkAuthStatus();
+        setIsAuthenticatedState(authStatus);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setIsAuthenticatedState(false);
+      } finally {
+        setIsCheckingAuth(false);
+      }
     };
     verifyAuth();
   }, []);
@@ -392,6 +403,118 @@ export default function Home() {
   const handleCancelEditWords = () => {
     setEditingWordsIndex(null);
     setEditingWords('');
+  };
+
+  // Get alert and toast functions
+  const { alert: showAlert } = useAlert();
+  const { toast: showToast } = useToast();
+
+  // Generate KDP Description
+  const handleGenerateKdpDescription = async () => {
+    if (!bookStructure || bookStructure.chapters.length === 0) {
+      await showAlert({ message: 'Please generate book structure with chapters first' });
+      return;
+    }
+
+    const chapterTitles = bookStructure.chapters
+      .filter(c => !c.isBlank)
+      .map(c => c.title);
+
+    if (chapterTitles.length === 0) {
+      await showAlert({ message: 'Please add at least one chapter with a title' });
+      return;
+    }
+
+    setIsGeneratingKdpContent(true);
+    setKdpContentType('description');
+    setKdpDescription(null);
+
+    try {
+      const response = await fetch('/api/generate-kdp-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'description',
+          bookTitle: bookStructure.bookTitle,
+          chapterTitles,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate description');
+      }
+
+      setKdpDescription(data.description);
+      showToast('Description generated successfully!', 'success');
+    } catch (error) {
+      console.error('Error generating KDP description:', error);
+      await showAlert({ message: error instanceof Error ? error.message : 'Failed to generate description' });
+    } finally {
+      setIsGeneratingKdpContent(false);
+    }
+  };
+
+  // Generate Book Titles
+  const handleGenerateBookTitles = async () => {
+    if (!bookStructure || bookStructure.chapters.length === 0) {
+      await showAlert({ message: 'Please generate book structure with chapters first' });
+      return;
+    }
+
+    const chapterTitles = bookStructure.chapters
+      .filter(c => !c.isBlank)
+      .map(c => c.title);
+
+    if (chapterTitles.length === 0) {
+      await showAlert({ message: 'Please add at least one chapter with a title' });
+      return;
+    }
+
+    setIsGeneratingKdpContent(true);
+    setKdpContentType('titles');
+    setKdpTitles(null);
+
+    try {
+      const response = await fetch('/api/generate-kdp-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'titles',
+          bookTitle: bookStructure.bookTitle,
+          chapterTitles,
+          count: 5,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate titles');
+      }
+
+      setKdpTitles(data.titles);
+      showToast('Titles generated successfully!', 'success');
+    } catch (error) {
+      console.error('Error generating book titles:', error);
+      await showAlert({ message: error instanceof Error ? error.message : 'Failed to generate titles' });
+    } finally {
+      setIsGeneratingKdpContent(false);
+    }
+  };
+
+  // Copy text to clipboard
+  const handleCopyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(type);
+      showToast('Copied to clipboard!', 'success');
+      setTimeout(() => setCopiedText(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      await showAlert({ message: 'Failed to copy to clipboard' });
+    }
   };
 
   // Delete chapter
@@ -1241,6 +1364,110 @@ export default function Home() {
                     : 'Generate Pages'
                   }
                 </Button>
+              </div>
+            )}
+
+            {/* KDP Content Generation (Book Mode) */}
+            {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-3">KDP Marketing Tools</label>
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    onClick={handleGenerateBookTitles}
+                    disabled={isGeneratingKdpContent}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                    size="sm"
+                  >
+                    {isGeneratingKdpContent && kdpContentType === 'titles' ? (
+                      'Generating...'
+                    ) : (
+                      <>
+                        <Type className="h-4 w-4 mr-2" />
+                        Generate Titles
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleGenerateKdpDescription}
+                    disabled={isGeneratingKdpContent}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                    size="sm"
+                  >
+                    {isGeneratingKdpContent && kdpContentType === 'description' ? (
+                      'Generating...'
+                    ) : (
+                      <>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Generate Description
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Generated Titles Display */}
+                {kdpTitles && kdpTitles.length > 0 && (
+                  <div className="mb-4 p-3 bg-slate-800 rounded border border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-medium text-slate-300">Suggested Titles:</label>
+                      <button
+                        onClick={() => {
+                          const allTitles = kdpTitles.join('\n');
+                          handleCopyToClipboard(allTitles, 'titles');
+                        }}
+                        className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Copy all titles"
+                      >
+                        {copiedText === 'titles' ? (
+                          <Check className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {kdpTitles.map((title, index) => (
+                        <div key={index} className="flex items-start gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 transition-colors">
+                          <span className="text-xs text-slate-400 mt-0.5">{index + 1}.</span>
+                          <span className="flex-1 text-sm text-slate-200">{title}</span>
+                          <button
+                            onClick={() => handleCopyToClipboard(title, `title-${index}`)}
+                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
+                            title="Copy this title"
+                          >
+                            {copiedText === `title-${index}` ? (
+                              <Check className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Generated Description Display */}
+                {kdpDescription && (
+                  <div className="p-3 bg-slate-800 rounded border border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-medium text-slate-300">KDP Book Description:</label>
+                      <button
+                        onClick={() => handleCopyToClipboard(kdpDescription, 'description')}
+                        className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                        title="Copy description"
+                      >
+                        {copiedText === 'description' ? (
+                          <Check className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                      {kdpDescription}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
