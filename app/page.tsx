@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check } from 'lucide-react';
+import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check, HelpCircle } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
@@ -15,6 +15,7 @@ import { checkAuthStatus, logout as logoutClient } from '@/lib/auth-client';
 import { useAlert } from '@/lib/alert';
 import { useToast } from '@/components/ui/toast';
 import InstructionsPanel from '@/components/InstructionsPanel';
+import HelpModal from '@/components/HelpModal';
 
 type Mode = 'book' | 'single';
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -72,6 +73,7 @@ export default function Home() {
   const [isGeneratingKdpContent, setIsGeneratingKdpContent] = useState(false);
   const [kdpContentType, setKdpContentType] = useState<'description' | 'titles' | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   
   // Generated data
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
@@ -1096,8 +1098,18 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm relative">
-        {/* Logout Button */}
-        <div className="absolute top-4 right-4 z-10">
+        {/* Help and Logout Buttons */}
+        <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <Button
+            onClick={() => setShowHelpModal(true)}
+            variant="outline"
+            size="sm"
+            className="border-slate-600 hover:bg-slate-800 text-slate-300"
+            title="Help & Instructions"
+          >
+            <HelpCircle className="h-4 w-4 mr-2" />
+            Help
+          </Button>
           <Button
             onClick={handleLogout}
             variant="outline"
@@ -2061,6 +2073,9 @@ export default function Home() {
       </main>
         </div>
       </div>
+
+      {/* Help Modal */}
+      <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
     </div>
   );
 }
