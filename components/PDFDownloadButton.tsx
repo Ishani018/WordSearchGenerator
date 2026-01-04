@@ -152,7 +152,8 @@ export async function generatePDFDoc({
       margin, 
       currentPage, 
       fontName, 
-      fontSize
+      fontSize,
+      copyrightText
     );
     currentPage++;
   });
@@ -235,10 +236,24 @@ function drawTitlePage(
   };
   
   // Title (fontSize only affects grid letters, not page text)
+  // Calculate usable width for title
+  const usableWidth = pageWidth - margin * 2;
+  const maxTitleWidth = usableWidth * 0.9; // Use 90% of usable width
+  
   doc.setFontSize(32);
   doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text(title, pageWidth / 2, pageHeight / 2 - 1, { align: 'center' });
+  
+  // Split title into multiple lines if it's too long
+  const titleLines = doc.splitTextToSize(title, maxTitleWidth);
+  const lineHeight = 0.4; // Height between lines in inches
+  const totalTitleHeight = titleLines.length * lineHeight;
+  let titleY = pageHeight / 2 - 1 - (totalTitleHeight / 2) + (lineHeight / 2);
+  
+  titleLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, titleY, { align: 'center' });
+    titleY += lineHeight;
+  });
   
   // Subtitle
   doc.setFontSize(18);

@@ -505,16 +505,42 @@ export default function Home() {
     }
   };
 
-  // Copy text to clipboard
+  // Copy text to clipboard with fallback
   const handleCopyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopiedText(type);
-      showToast('Copied to clipboard!', 'success');
-      setTimeout(() => setCopiedText(null), 2000);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        setCopiedText(type);
+        showToast('Copied to clipboard!', 'success');
+        setTimeout(() => setCopiedText(null), 2000);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          const successful = document.execCommand('copy');
+          if (successful) {
+            setCopiedText(type);
+            showToast('Copied to clipboard!', 'success');
+            setTimeout(() => setCopiedText(null), 2000);
+          } else {
+            throw new Error('execCommand failed');
+          }
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
     } catch (error) {
       console.error('Failed to copy:', error);
-      await showAlert({ message: 'Failed to copy to clipboard' });
+      // Don't show alert for clipboard errors, just log
+      showToast('Copy failed. Please select and copy manually.', 'error');
     }
   };
 
@@ -877,27 +903,49 @@ export default function Home() {
     }
 
     setIsGeneratingPuzzle(true);
-    setGenerationProgress({ current: 0, total: bookStructure.chapters.length });
+    
+    // If "Add blank pages between chapters" is enabled, add them to bookStructure first
+    let chaptersToProcess: Chapter[];
+    if (addBlankPagesBetweenChapters) {
+      const updatedChapters: Chapter[] = [];
+      bookStructure.chapters.forEach((chapter, index) => {
+        updatedChapters.push(chapter);
+        // Add blank page after this chapter if not the last chapter and next is not blank
+        if (index < bookStructure.chapters.length - 1) {
+          const nextChapter = bookStructure.chapters[index + 1];
+          if (!nextChapter.isBlank && !chapter.isBlank) {
+            updatedChapters.push({ title: 'Blank Page', words: [], isBlank: true });
+          }
+        }
+      });
+      // Update bookStructure to include blank pages so they show in the UI
+      setBookStructure({ ...bookStructure, chapters: updatedChapters });
+      chaptersToProcess = updatedChapters;
+    } else {
+      chaptersToProcess = bookStructure.chapters;
+    }
+    
+    setGenerationProgress({ current: 0, total: chaptersToProcess.length });
     setBookPuzzles([]);
 
     const puzzles: PDFPageItem[] = [];
 
     const generateNextPuzzle = (index: number) => {
-      if (index >= bookStructure!.chapters.length) {
+      if (index >= chaptersToProcess.length) {
         setBookPuzzles(puzzles);
         setIsGeneratingPuzzle(false);
         setGenerationProgress({ current: 0, total: 0 });
         
         // Show summary if some puzzles failed
-        const realChapters = bookStructure!.chapters.filter(c => !c.isBlank);
+        const realChapters = chaptersToProcess.filter(c => !c.isBlank);
         const failedCount = realChapters.length - puzzles.filter(p => !('isBlank' in p)).length;
         if (failedCount > 0) {
           const failedChapters = realChapters
             .filter((_, idx) => {
-              const chapterIndex = bookStructure!.chapters.findIndex(c => c === realChapters[idx]);
+              const chapterIndex = chaptersToProcess.findIndex(c => c === realChapters[idx]);
               return !puzzles.some((p, pIdx) => {
                 if ('isBlank' in p) return false;
-                const puzzleChapterIndex = bookStructure!.chapters.findIndex(c => c.title === (p as PuzzleResult & { chapterTitle?: string }).chapterTitle);
+                const puzzleChapterIndex = chaptersToProcess.findIndex(c => c.title === (p as PuzzleResult & { chapterTitle?: string }).chapterTitle);
                 return puzzleChapterIndex === chapterIndex;
               });
             })
@@ -921,12 +969,12 @@ export default function Home() {
         return;
       }
 
-      const chapter = bookStructure!.chapters[index];
+      const chapter = chaptersToProcess[index];
 
       // Handle Blank Page
       if (chapter.isBlank) {
         puzzles.push({ isBlank: true, chapterTitle: 'Blank Page' });
-        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setGenerationProgress({ current: index + 1, total: chaptersToProcess.length });
         setTimeout(() => generateNextPuzzle(index + 1), 5); // Fast forward
         return;
       }
@@ -944,7 +992,7 @@ export default function Home() {
         console.warn(`No valid words for chapter "${chapter.title}" - all ${wordsForPuzzle.length} words don't fit grid size ${gridSize}x${gridSize} (max word length: ${maxWordLength})`);
         console.warn(`Words in chapter: ${wordLengths}`);
         console.warn(`Note: Words should be between 4 and ${maxWordLength} letters for a ${gridSize}x${gridSize} grid`);
-        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setGenerationProgress({ current: index + 1, total: chaptersToProcess.length });
         setTimeout(() => generateNextPuzzle(index + 1), 10);
         return;
       }
@@ -959,7 +1007,7 @@ export default function Home() {
         // Check if we got a reasonable number of placed words
         if (result.placedWords.length === 0) {
           console.warn(`No words could be placed for chapter "${chapter.title}"`);
-          setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+          setGenerationProgress({ current: index + 1, total: chaptersToProcess.length });
           setTimeout(() => generateNextPuzzle(index + 1), 10);
           return;
         }
@@ -969,22 +1017,13 @@ export default function Home() {
           chapterTitle: chapter.title,
         });
         
-        // Add blank page after this chapter if option is enabled and not the last chapter
-        if (addBlankPagesBetweenChapters && index < bookStructure!.chapters.length - 1) {
-          // Check if next chapter is not blank (don't add blank page if next is already blank)
-          const nextChapter = bookStructure!.chapters[index + 1];
-          if (!nextChapter.isBlank) {
-            puzzles.push({ isBlank: true, chapterTitle: 'Blank Page' });
-          }
-        }
-        
-        setGenerationProgress({ current: puzzles.length, total: bookStructure!.chapters.length });
+        setGenerationProgress({ current: puzzles.length, total: chaptersToProcess.length });
         
         setTimeout(() => generateNextPuzzle(index + 1), 10);
       } catch (error) {
         console.error(`Error generating puzzle for chapter "${chapter.title}":`, error);
         // Continue with next puzzle instead of stopping
-        setGenerationProgress({ current: index + 1, total: bookStructure!.chapters.length });
+        setGenerationProgress({ current: index + 1, total: chaptersToProcess.length });
         setTimeout(() => generateNextPuzzle(index + 1), 10);
       }
     };
@@ -1187,6 +1226,44 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Book Title Editor (Book Mode) */}
+            {mode === 'book' && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-2">Book Title</label>
+                <input
+                  type="text"
+                  value={bookStructure?.bookTitle || ''}
+                  onChange={(e) => {
+                    if (bookStructure) {
+                      setBookStructure({ ...bookStructure, bookTitle: e.target.value });
+                    } else {
+                      // Initialize bookStructure if it doesn't exist
+                      setBookStructure({ bookTitle: e.target.value, chapters: [] });
+                    }
+                  }}
+                  placeholder="Enter book title or paste from generated titles"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">You can paste a title from the generated titles below</p>
+              </div>
+            )}
+
+            {/* Word Validation Toggle */}
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  checked={enableWordValidation}
+                  onChange={(e) => setEnableWordValidation(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <span>Word Validation</span>
+              </label>
+              <p className="text-xs text-slate-400">
+                When enabled, words are checked against a dictionary API to remove spelling errors and incomplete words. Applies to all modes (Book, Single, CSV Import).
+              </p>
+            </div>
+
             {/* Structure Generation Progress (Book Mode) */}
             {mode === 'book' && isGeneratingStructure && (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
@@ -1294,6 +1371,23 @@ export default function Home() {
                     <span className="text-sm text-slate-400">in</span>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Book Title Editor (Book Mode) */}
+            {mode === 'book' && bookStructure && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <label className="block text-sm font-medium text-slate-300 mb-2">Book Title</label>
+                <input
+                  type="text"
+                  value={bookStructure.bookTitle}
+                  onChange={(e) => {
+                    setBookStructure(prev => prev ? { ...prev, bookTitle: e.target.value } : null);
+                  }}
+                  placeholder="Enter book title or paste from generated titles"
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">You can paste a title from the generated titles below</p>
               </div>
             )}
 
@@ -1655,24 +1749,6 @@ export default function Home() {
               </select>
             </div>
 
-            {/* Word Validation Toggle */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Word Validation
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={enableWordValidation}
-                  onChange={(e) => setEnableWordValidation(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                <span>Validate words with dictionary (removes spelling errors)</span>
-              </label>
-              <p className="text-xs text-slate-400 mt-2">
-                When enabled, words are checked against a dictionary API to remove spelling errors and incomplete words. Applies to all modes (Book, Single, CSV Import).
-              </p>
-            </div>
 
             {/* Generate Button (Single Mode) */}
             {mode === 'single' && (
