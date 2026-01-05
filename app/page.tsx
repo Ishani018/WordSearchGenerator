@@ -1097,62 +1097,68 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm relative">
-        {/* Help and Logout Buttons */}
-        <div className="absolute top-4 right-4 z-10 flex gap-2">
-          <Button
-            onClick={() => setShowHelpModal(true)}
-            variant="outline"
-            size="sm"
-            className="border-slate-600 hover:bg-slate-800 text-slate-300"
-            title="Help & Instructions"
-          >
-            <HelpCircle className="h-4 w-4 mr-2" />
-            Help
-          </Button>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            size="sm"
-            className="border-slate-600 hover:bg-slate-800 text-slate-300"
-          >
-            Logout
-          </Button>
-        </div>
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-6 w-6 text-blue-400" />
-            <h1 className="text-2xl font-bold">Printable Puzzle Book Generator</h1>
-          </div>
-          <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
-            <button
-              onClick={() => {
-                setMode('single');
-                setBookStructure(null);
-                setBookPuzzles([]);
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                mode === 'single'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Single Puzzle
-            </button>
-            <button
-              onClick={() => {
-                setMode('book');
-                setPuzzle(null);
-                setGeneratedWords([]);
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                mode === 'book'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Book Mode
-            </button>
+      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left: Logo and Title */}
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-6 w-6 text-blue-400" />
+              <h1 className="text-2xl font-bold">Printable Puzzle Book Generator</h1>
+            </div>
+            
+            {/* Center: Mode Toggle */}
+            <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setMode('single');
+                  setBookStructure(null);
+                  setBookPuzzles([]);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'single'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Single Puzzle
+              </button>
+              <button
+                onClick={() => {
+                  setMode('book');
+                  setPuzzle(null);
+                  setGeneratedWords([]);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mode === 'book'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Book Mode
+              </button>
+            </div>
+
+            {/* Right: Help and Logout Buttons */}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowHelpModal(true)}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+                title="Help & Instructions"
+              >
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Help
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+              >
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
