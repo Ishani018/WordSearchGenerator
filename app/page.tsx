@@ -1426,61 +1426,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Page Size Selector (Book Mode) */}
-            {mode === 'book' && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Page Size (PDF)</label>
-                <select 
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onChange={(e) => {
-                    if (e.target.value === 'custom') {
-                      setIsCustomSize(true);
-                    } else {
-                      setIsCustomSize(false);
-                      const size = PAGE_SIZES.find(s => s.name === e.target.value);
-                      if (size) setPageSize(size);
-                    }
-                  }}
-                  value={isCustomSize ? 'custom' : pageSize.name}
-                >
-                  {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                  <option value="custom">Custom Size...</option>
-                </select>
-                
-                {isCustomSize && (
-                  <div className="flex gap-2 items-center">
-                    <input 
-                      type="number" 
-                      className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100" 
-                      placeholder="W" 
-                      step="0.1"
-                      value={customPageSize.width}
-                      onChange={e => {
-                        const w = parseFloat(e.target.value);
-                        setCustomPageSize(p => ({ ...p, width: w }));
-                        setPageSize({ ...pageSize, width: w });
-                      }}
-                    />
-                    <span className="text-slate-500">x</span>
-                    <input 
-                      type="number" 
-                      className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100" 
-                      placeholder="H" 
-                      step="0.1"
-                      value={customPageSize.height}
-                      onChange={e => {
-                        const h = parseFloat(e.target.value);
-                        setCustomPageSize(p => ({ ...p, height: h }));
-                        setPageSize({ ...pageSize, height: h });
-                      }}
-                    />
-                    <span className="text-sm text-slate-400">in</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-
             {/* Chapter Management (Book Mode) */}
             {mode === 'book' && bookStructure && !isGeneratingStructure && (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
@@ -1925,6 +1870,58 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Page Size Selector */}
+                <div className="mb-4">
+                  <label className="block text-xs text-slate-400 mb-1">Page Size (PDF)</label>
+                  <select 
+                    className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      if (e.target.value === 'custom') {
+                        setIsCustomSize(true);
+                      } else {
+                        setIsCustomSize(false);
+                        const size = PAGE_SIZES.find(s => s.name === e.target.value);
+                        if (size) setPageSize(size);
+                      }
+                    }}
+                    value={isCustomSize ? 'custom' : pageSize.name}
+                  >
+                    {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                    <option value="custom">Custom Size...</option>
+                  </select>
+                  
+                  {isCustomSize && (
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="number" 
+                        className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm" 
+                        placeholder="W" 
+                        step="0.1"
+                        value={customPageSize.width}
+                        onChange={e => {
+                          const w = parseFloat(e.target.value);
+                          setCustomPageSize(p => ({ ...p, width: w }));
+                          setPageSize({ ...pageSize, width: w });
+                        }}
+                      />
+                      <span className="text-slate-500">x</span>
+                      <input 
+                        type="number" 
+                        className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm" 
+                        placeholder="H" 
+                        step="0.1"
+                        value={customPageSize.height}
+                        onChange={e => {
+                          const h = parseFloat(e.target.value);
+                          setCustomPageSize(p => ({ ...p, height: h }));
+                          setPageSize({ ...pageSize, height: h });
+                        }}
+                      />
+                      <span className="text-xs text-slate-400">in</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Book Mode Only Options */}
                 {mode === 'book' && (
                   <div className="mb-4 space-y-2">
@@ -2004,7 +2001,7 @@ export default function Home() {
                         fontId={selectedFont}
                         fontSize={fontSize}
                         headingSize={headingSize}
-                        pageFormat={{ width: 8.5, height: 11 }}
+                        pageFormat={pageSize}
                       />
                       <PDFDownloadButton
                         puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
@@ -2012,7 +2009,7 @@ export default function Home() {
                         fontId={selectedFont}
                         fontSize={fontSize}
                         headingSize={headingSize}
-                        pageFormat={{ width: 8.5, height: 11 }}
+                        pageFormat={pageSize}
                       />
                     </>
                   )}
