@@ -1359,8 +1359,8 @@ export default function Home() {
                   </label>
                   <p className="text-xs text-slate-400 mt-1 ml-6">
                     Check words against dictionary API (removes spelling errors)
-                  </p>
-                </div>
+          </p>
+        </div>
 
                 {/* Difficulty */}
                 <div>
@@ -1632,93 +1632,94 @@ export default function Home() {
 
           {/* Right Side - Preview */}
           <main className="overflow-hidden flex flex-col">
-            {/* PDF Options - Moved to top of preview area */}
-            {((mode === 'book' && bookPuzzles.length > 0) || (mode === 'single' && puzzle)) && (
-              <div className="bg-slate-900 rounded-lg border border-slate-800 mb-4">
-                <button
-                  onClick={() => setIsPdfOptionsOpen(!isPdfOptionsOpen)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
-                >
-                  <h3 className="text-sm font-semibold text-slate-300">PDF Options</h3>
-                  {isPdfOptionsOpen ? (
-                    <ChevronUp className="h-4 w-4 text-slate-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                  )}
-                </button>
-                {isPdfOptionsOpen && (
-                  <div className="p-4 overflow-y-auto max-h-[40vh]">
+            {/* PDF Options - Always visible */}
+            <div className="bg-slate-900 rounded-lg border border-slate-800 mb-4">
+              <button
+                onClick={() => setIsPdfOptionsOpen(!isPdfOptionsOpen)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
+              >
+                <h3 className="text-sm font-semibold text-slate-300">PDF Options</h3>
+                {isPdfOptionsOpen ? (
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+              {isPdfOptionsOpen && (
+                <div className="p-4 overflow-y-auto max-h-[40vh]">
                 
-                {/* Book Title (Book Mode Only) */}
+                {/* Book Title and KDP Tools - Side by Side (Book Mode Only) */}
                 {mode === 'book' && (
-                  <div className="mb-4">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Book Title
-                    </label>
-                    <input
-                      type="text"
-                      value={bookStructure?.bookTitle || ''}
-                      onChange={(e) => {
-                        if (bookStructure) {
-                          setBookStructure({ ...bookStructure, bookTitle: e.target.value });
-                        } else {
-                          setBookStructure({ bookTitle: e.target.value, chapters: [] });
-                        }
-                      }}
-                      placeholder="Enter book title"
-                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Book Title</label>
+                      <input
+                        type="text"
+                        value={bookStructure?.bookTitle || ''}
+                        onChange={(e) => {
+                          if (bookStructure) {
+                            setBookStructure({ ...bookStructure, bookTitle: e.target.value });
+                          } else {
+                            setBookStructure({ bookTitle: e.target.value, chapters: [] });
+                          }
+                        }}
+                        placeholder="Enter book title"
+                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    {bookStructure && bookStructure.chapters.length > 0 && (
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">KDP Tools</label>
+                        <div className="space-y-1.5">
+                          <Button
+                            onClick={handleGenerateBookTitles}
+                            disabled={isGeneratingKdpContent}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs py-1.5"
+                            size="sm"
+                          >
+                            {isGeneratingKdpContent && kdpContentType === 'titles' ? (
+                              'Generating...'
+                            ) : (
+                              <>
+                                <Type className="h-3 w-3 mr-1.5" />
+                                Generate Titles
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={handleGenerateKdpDescription}
+                            disabled={isGeneratingKdpContent}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1.5"
+                            size="sm"
+                          >
+                            {isGeneratingKdpContent && kdpContentType === 'description' ? (
+                              'Generating...'
+                            ) : (
+                              <>
+                                <FileText className="h-3 w-3 mr-1.5" />
+                                Generate Description
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* KDP Marketing Tools (Book Mode Only) */}
-                {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
-                  <div className="mb-4 p-3 bg-slate-800 rounded border border-slate-700">
-                    <label className="block text-xs font-medium text-slate-300 mb-2">KDP Marketing Tools</label>
-                    <div className="flex gap-2 mb-3">
-                      <Button
-                        onClick={handleGenerateBookTitles}
-                        disabled={isGeneratingKdpContent}
-                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                        size="sm"
-                      >
-                        {isGeneratingKdpContent && kdpContentType === 'titles' ? (
-                          'Generating...'
-                        ) : (
-                          <>
-                            <Type className="h-4 w-4 mr-2" />
-                            Generate Titles
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        onClick={handleGenerateKdpDescription}
-                        disabled={isGeneratingKdpContent}
-                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                        size="sm"
-                      >
-                        {isGeneratingKdpContent && kdpContentType === 'description' ? (
-                          'Generating...'
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Generate Description
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    {/* Generated Titles Display */}
+                {/* KDP Results (Book Mode Only) */}
+                {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (kdpTitles || kdpDescription) && (
+                  <div className="mb-4 p-2.5 bg-slate-800 rounded border border-slate-700 space-y-2.5">
                     {kdpTitles && kdpTitles.length > 0 && (
-                      <div className="mb-3 p-2 bg-slate-700 rounded border border-slate-600">
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs font-medium text-slate-300">Suggested Titles:</label>
+                      <div className="p-2 bg-slate-700 rounded border border-slate-600">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-medium text-slate-300">Titles:</label>
                           <button
                             onClick={() => {
                               const allTitles = kdpTitles.join('\n');
                               handleCopyToClipboard(allTitles, 'titles');
                             }}
-                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                            className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors"
                             title="Copy all titles"
                           >
                             {copiedText === 'titles' ? (
@@ -1728,11 +1729,11 @@ export default function Home() {
                             )}
                           </button>
                         </div>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                        <div className="space-y-1 max-h-24 overflow-y-auto">
                           {kdpTitles.map((title, index) => (
-                            <div key={index} className="flex items-start gap-2 p-1.5 bg-slate-600 rounded hover:bg-slate-500 transition-colors">
-                              <span className="text-xs text-slate-400 mt-0.5">{index + 1}.</span>
-                              <span className="flex-1 text-xs text-slate-200">{title}</span>
+                            <div key={index} className="flex items-start gap-1.5 p-1 bg-slate-600 rounded hover:bg-slate-500 transition-colors text-xs">
+                              <span className="text-slate-400 mt-0.5">{index + 1}.</span>
+                              <span className="flex-1 text-slate-200">{title}</span>
                               <button
                                 onClick={() => {
                                   handleCopyToClipboard(title, `title-${index}`);
@@ -1744,9 +1745,9 @@ export default function Home() {
                                 title="Copy and use as book title"
                               >
                                 {copiedText === `title-${index}` ? (
-                                  <Check className="h-3 w-3 text-green-400" />
+                                  <Check className="h-2.5 w-2.5 text-green-400" />
                                 ) : (
-                                  <Copy className="h-3 w-3" />
+                                  <Copy className="h-2.5 w-2.5" />
                                 )}
                               </button>
                             </div>
@@ -1754,15 +1755,13 @@ export default function Home() {
                         </div>
                       </div>
                     )}
-
-                    {/* Generated Description Display */}
                     {kdpDescription && (
                       <div className="p-2 bg-slate-700 rounded border border-slate-600">
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="text-xs font-medium text-slate-300">KDP Description:</label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-medium text-slate-300">Description:</label>
                           <button
                             onClick={() => handleCopyToClipboard(kdpDescription, 'description')}
-                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                            className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors"
                             title="Copy description"
                           >
                             {copiedText === 'description' ? (
@@ -1772,193 +1771,178 @@ export default function Home() {
                             )}
                           </button>
                         </div>
-                        <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-24 overflow-y-auto">{kdpDescription}</p>
+                        <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-20 overflow-y-auto">{kdpDescription}</p>
                       </div>
                     )}
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  {/* Font Selection */}
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Font
-                    </label>
-                    <select
-                      value={selectedFont}
-                      onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {AVAILABLE_FONTS.map((font) => {
-                        // Get font family name for preview
-                        let fontFamily = 'inherit';
-                        if (font.type === 'standard') {
-                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
-                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
-                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
-                        } else if (font.type === 'google') {
-                          // Map font IDs to Google Font names
-                          const fontMap: { [key: string]: string } = {
-                            'roboto': 'Roboto, sans-serif',
-                            'roboto-bold': 'Roboto, sans-serif',
-                            'open-sans': '"Open Sans", sans-serif',
-                            'open-sans-bold': '"Open Sans", sans-serif',
-                            'lora': 'Lora, serif',
-                            'lora-bold': 'Lora, serif',
-                            'playfair-display': '"Playfair Display", serif',
-                            'playfair-display-bold': '"Playfair Display", serif',
-                            'playpen-sans': '"Playpen Sans", cursive',
-                            'playpen-sans-bold': '"Playpen Sans", cursive',
-                            'schoolbell': '"Schoolbell", cursive',
-                          };
-                          fontFamily = fontMap[font.id] || 'inherit';
-                        }
-                        
-                        return (
-                          <option
-                            key={font.id}
-                            value={font.id}
-                            style={{ fontFamily }}
-                          >
-                            {font.name}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-                  
-                  {/* Grid Letter Size */}
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Grid Letter Size ({fontSize}pt)
-                    </label>
-                    <input
-                      type="range"
-                      min="4"
-                      max="20"
-                      step="1"
-                      value={fontSize}
-                      onChange={(e) => setFontSize(parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>4pt</span>
-                      <span>12pt</span>
-                      <span>20pt</span>
+                {/* PDF Settings - Compact Grid */}
+                <div className="mb-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Font */}
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Font</label>
+                      <select
+                        value={selectedFont}
+                        onChange={(e) => setSelectedFont(e.target.value)}
+                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {AVAILABLE_FONTS.map((font) => {
+                          let fontFamily = 'inherit';
+                          if (font.type === 'standard') {
+                            fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
+                                         font.id === 'times' ? 'Times, "Times New Roman", serif' :
+                                         font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
+                          } else if (font.type === 'google') {
+                            const fontMap: { [key: string]: string } = {
+                              'roboto': 'Roboto, sans-serif',
+                              'roboto-bold': 'Roboto, sans-serif',
+                              'open-sans': '"Open Sans", sans-serif',
+                              'open-sans-bold': '"Open Sans", sans-serif',
+                              'lora': 'Lora, serif',
+                              'lora-bold': 'Lora, serif',
+                              'playfair-display': '"Playfair Display", serif',
+                              'playfair-display-bold': '"Playfair Display", serif',
+                              'playpen-sans': '"Playpen Sans", cursive',
+                              'playpen-sans-bold': '"Playpen Sans", cursive',
+                              'schoolbell': '"Schoolbell", cursive',
+                            };
+                            fontFamily = fontMap[font.id] || 'inherit';
+                          }
+                          return (
+                            <option key={font.id} value={font.id} style={{ fontFamily }}>
+                              {font.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                    
+                    {/* Page Size */}
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Page Size</label>
+                      <div className="flex gap-1.5">
+                        <select 
+                          className="flex-1 px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => {
+                            if (e.target.value === 'custom') {
+                              setIsCustomSize(true);
+                            } else {
+                              setIsCustomSize(false);
+                              const size = PAGE_SIZES.find(s => s.name === e.target.value);
+                              if (size) setPageSize(size);
+                            }
+                          }}
+                          value={isCustomSize ? 'custom' : pageSize.name}
+                        >
+                          {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                          <option value="custom">Custom...</option>
+                        </select>
+                        {isCustomSize && (
+                          <div className="flex gap-1 items-center">
+                            <input 
+                              type="number" 
+                              className="w-14 px-1 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs" 
+                              placeholder="W" 
+                              step="0.1"
+                              value={customPageSize.width}
+                              onChange={e => {
+                                const w = parseFloat(e.target.value);
+                                setCustomPageSize(p => ({ ...p, width: w }));
+                                setPageSize({ ...pageSize, width: w });
+                              }}
+                            />
+                            <span className="text-slate-500 text-xs">×</span>
+                            <input 
+                              type="number" 
+                              className="w-14 px-1 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs" 
+                              placeholder="H" 
+                              step="0.1"
+                              value={customPageSize.height}
+                              onChange={e => {
+                                const h = parseFloat(e.target.value);
+                                setCustomPageSize(p => ({ ...p, height: h }));
+                                setPageSize({ ...pageSize, height: h });
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Heading Size */}
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Puzzle Title Size ({headingSize}pt)
-                    </label>
-                    <input
-                      type="range"
-                      min="10"
-                      max="24"
-                      step="1"
-                      value={headingSize}
-                      onChange={(e) => setHeadingSize(parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>10pt</span>
-                      <span>16pt</span>
-                      <span>24pt</span>
+                  {/* Font Sizes - Side by Side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Grid Size ({fontSize}pt)</label>
+                      <input
+                        type="range"
+                        min="4"
+                        max="20"
+                        step="1"
+                        value={fontSize}
+                        onChange={(e) => setFontSize(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-slate-500 mt-0.5">
+                        <span>4</span>
+                        <span>12</span>
+                        <span>20</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Title Size ({headingSize}pt)</label>
+                      <input
+                        type="range"
+                        min="10"
+                        max="24"
+                        step="1"
+                        value={headingSize}
+                        onChange={(e) => setHeadingSize(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-slate-500 mt-0.5">
+                        <span>10</span>
+                        <span>16</span>
+                        <span>24</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Page Size Selector */}
-                <div className="mb-4">
-                  <label className="block text-xs text-slate-400 mb-1">Page Size (PDF)</label>
-                  <select 
-                    className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
-                        setIsCustomSize(true);
-                      } else {
-                        setIsCustomSize(false);
-                        const size = PAGE_SIZES.find(s => s.name === e.target.value);
-                        if (size) setPageSize(size);
-                      }
-                    }}
-                    value={isCustomSize ? 'custom' : pageSize.name}
-                  >
-                    {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                    <option value="custom">Custom Size...</option>
-                  </select>
-                  
-                  {isCustomSize && (
-                    <div className="flex gap-2 items-center">
-                      <input 
-                        type="number" 
-                        className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm" 
-                        placeholder="W" 
-                        step="0.1"
-                        value={customPageSize.width}
-                        onChange={e => {
-                          const w = parseFloat(e.target.value);
-                          setCustomPageSize(p => ({ ...p, width: w }));
-                          setPageSize({ ...pageSize, width: w });
-                        }}
-                      />
-                      <span className="text-slate-500">x</span>
-                      <input 
-                        type="number" 
-                        className="w-20 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-sm" 
-                        placeholder="H" 
-                        step="0.1"
-                        value={customPageSize.height}
-                        onChange={e => {
-                          const h = parseFloat(e.target.value);
-                          setCustomPageSize(p => ({ ...p, height: h }));
-                          setPageSize({ ...pageSize, height: h });
-                        }}
-                      />
-                      <span className="text-xs text-slate-400">in</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Book Mode Only Options */}
+                {/* Book Mode Options - Compact Grid */}
                 {mode === 'book' && (
                   <div className="mb-4 space-y-2">
-                    {/* Include Title Page */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeTitlePage}
-                        onChange={(e) => setIncludeTitlePage(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-slate-300">Include Title Page</span>
-                    </label>
-                    
-                    {/* Include "This Book Belongs To" Page */}
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeBelongsToPage}
-                        onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-slate-300">Include "This Book Belongs To" Page</span>
-                    </label>
-                    
-                    {/* Copyright Text */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includeTitlePage}
+                          onChange={(e) => setIncludeTitlePage(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-slate-300">Title Page</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includeBelongsToPage}
+                          onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-slate-300">Belongs To Page</span>
+                      </label>
+                    </div>
                     {includeTitlePage && (
-                      <div className="mt-2">
-                        <label className="block text-xs text-slate-400 mb-1">
-                          Copyright Text (optional)
-                        </label>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Copyright</label>
                         <input
                           type="text"
                           value={copyrightText}
                           onChange={(e) => setCopyrightText(e.target.value)}
                           placeholder="Your Name or Company"
-                          className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-1/2 px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     )}
@@ -2014,10 +1998,9 @@ export default function Home() {
                     </>
                   )}
                 </div>
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Puzzle Preview */}
             <div className={`flex-1 overflow-auto min-h-0 transition-all ${!isPdfOptionsOpen ? 'min-h-[calc(100vh-200px)]' : ''}`}>
@@ -2054,7 +2037,7 @@ export default function Home() {
                   </div>
                 </div>
               )}
-            </div>
+        </div>
       </main>
         </div>
       </div>

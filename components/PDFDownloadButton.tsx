@@ -464,7 +464,7 @@ function drawPuzzlePage(
   
   doc.setFont(getFont('helvetica'), 'normal');
   let wordListFontSize = 11;
-  const lineSpacing = 0.18;
+  const lineSpacing = 0.25; // Increased from 0.18 for more spacing between words
   
   // Dynamic columns based on page width
   let numColumns = pageWidth > 6 ? 3 : 2; 
@@ -494,7 +494,7 @@ function drawPuzzlePage(
       const idx = col * wordsPerColumn + i;
       if (idx < words.length && currentY < maxWordListY) {
         doc.text(words[idx], xPos, currentY);
-        currentY += lineSpacing * 0.9;
+        currentY += lineSpacing; // Removed the 0.9 multiplier for full spacing
       }
     }
   }
