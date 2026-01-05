@@ -19,6 +19,7 @@ export interface PDFDownloadButtonProps {
   copyrightText?: string;
   fontId?: string;
   fontSize?: number; // Font size in points for grid letters (e.g., 10 = 10pt)
+  headingSize?: number; // Font size in points for puzzle titles (e.g., 16 = 16pt)
   pageFormat: { width: number; height: number }; // New prop for page size
 }
 
@@ -31,6 +32,7 @@ export async function generatePDFDoc({
   copyrightText = '',
   fontId,
   fontSize = 10, // Default 10pt
+  headingSize = 16, // Default 16pt
   pageFormat
 }: PDFDownloadButtonProps): Promise<jsPDF> {
     const doc = new jsPDF({
@@ -153,6 +155,7 @@ export async function generatePDFDoc({
       currentPage, 
       fontName, 
       fontSize,
+      headingSize,
       copyrightText
     );
     currentPage++;
@@ -315,6 +318,7 @@ function drawPuzzlePage(
   pageNum: number,
   fontName?: string,
   fontSize: number = 10, // Font size in points for grid letters
+  headingSize: number = 16, // Font size in points for puzzle titles
   copyrightText?: string
 ) {
   const getFont = (defaultFont: string = 'helvetica') => {
@@ -332,7 +336,7 @@ function drawPuzzlePage(
   const contentCenterX = pageWidth / 2;
   
   // Puzzle title - use chapter title if available (fontSize only affects grid letters)
-  doc.setFontSize(16);
+  doc.setFontSize(headingSize);
   doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
   const puzzleTitle = puzzle.chapterTitle 

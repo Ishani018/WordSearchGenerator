@@ -23,20 +23,26 @@ All puzzle generation happens client-side in the browser, ensuring privacy and f
 ### User Experience
 - 🎨 **Modern Dark-Mode UI**: Beautiful dashboard with Tailwind CSS styling
 - 📱 **Fully Responsive**: Works perfectly on all screen sizes
-- ✨ **Interactive Preview**: Hover over words to see them highlighted in the grid
-- 📊 **Progress Tracking**: Real-time progress bars for word generation and puzzle creation
-- 🎯 **Smart Instructions**: Context-aware instructions that appear when needed
+- ✨ **Interactive Preview**: Hover over words to see them highlighted in the grid, click chapters to view puzzles
+- 📊 **Progress Tracking**: Prominent real-time progress bars at the top of the sidebar for word generation and puzzle creation
+- 🎯 **Smart Instructions**: Context-aware instructions that appear when needed, plus comprehensive help modal
 - 🔔 **Custom Alerts**: Beautiful theme-matching alert dialogs and toast notifications
+- 🎛️ **Organized Controls**: Consolidated input fields in a clean, vertical layout for better UX
+- 📋 **Intuitive Layout**: CSV import and pages management grouped together for logical workflow
 
 ### Advanced Features
 - 📝 **Word Editing**: Edit words before generating puzzles
-- 📥 **CSV Import**: Bulk import words from CSV files (supports multiple formats)
+- 📥 **CSV Import**: Single CSV import that automatically splits words into chapters based on words-per-puzzle setting
 - ✅ **Word Validation**: Optional dictionary validation to filter invalid words
 - 🎲 **Smart Algorithm**: Improved word placement with intersection prioritization and anti-clustering
 - 📏 **Difficulty Levels**: Easy (horizontal/vertical), Medium (+ diagonals), Hard (+ reverse)
-- 🎨 **Font Customization**: Support for Google Fonts and standard fonts in PDFs
+- 🎨 **Font Customization**: Support for Google Fonts and standard fonts in PDFs with adjustable sizes
 - 📐 **KDP Page Sizes**: Support for standard KDP page sizes with mirrored margins
 - 📑 **Book Features**: Title pages, "This Book Belongs To" pages, blank pages, chapter reordering
+- 🎯 **KDP Marketing Tools**: AI-powered title generator and Amazon book description generator
+- 👁️ **Puzzle Navigation**: Click on chapters to preview individual puzzles
+- 📊 **Enhanced Progress Tracking**: Prominent progress bars at the top of the sidebar for better visibility
+- 🎛️ **Collapsible PDF Options**: PDF customization options can be collapsed to maximize preview space
 
 ## 🛠️ Tech Stack
 
@@ -152,8 +158,12 @@ npm start
 word-search-generator/
 ├── app/                          # Next.js App Router directory
 │   ├── api/                      # API routes
+│   │   ├── auth/                 # Authentication endpoint
+│   │   │   └── route.ts         # Login, logout, status check
 │   │   ├── generate-words/       # Word generation endpoint
 │   │   │   └── route.ts         # Groq API integration with rate limiting
+│   │   ├── generate-kdp-content/ # KDP marketing content generation
+│   │   │   └── route.ts         # AI-powered titles and descriptions
 │   │   └── validate-word/       # Word validation endpoint
 │   │       └── route.ts         # Dictionary API proxy
 │   ├── layout.tsx               # Root layout with providers
@@ -161,6 +171,7 @@ word-search-generator/
 │   └── globals.css              # Global styles
 │
 ├── components/                   # React components
+│   ├── HelpModal.tsx            # Comprehensive help and instructions modal
 │   ├── InstructionsPanel.tsx    # Context-aware instructions
 │   ├── LoginForm.tsx            # Authentication UI
 │   ├── PDFDownloadButton.tsx    # PDF generation component
@@ -174,7 +185,7 @@ word-search-generator/
 │
 ├── lib/                         # Utility functions and logic
 │   ├── alert.tsx                # Alert context provider
-│   ├── auth.ts                  # Authentication configuration
+│   ├── auth-client.ts           # Client-side auth utilities
 │   ├── fonts.ts                 # Font loading utilities
 │   ├── puzzle-generator.ts      # Core puzzle generation algorithm
 │   ├── utils.ts                 # General utilities
@@ -220,12 +231,12 @@ Minimal server-side code:
 ### `app/page.tsx`
 Main dashboard component with:
 - Mode switching (Book/Single)
-- Theme input and word generation
-- Grid size selector
-- Difficulty settings
-- Chapter management (Book Mode)
-- PDF options
-- Progress tracking
+- Consolidated puzzle settings (theme, validation, difficulty, words per puzzle, chapters)
+- CSV import with automatic chapter splitting
+- Chapter management with puzzle navigation
+- KDP marketing tools (title and description generation)
+- Collapsible PDF options
+- Prominent progress tracking at top of sidebar
 - Authentication integration
 
 ### `lib/puzzle-generator.ts`
@@ -251,6 +262,13 @@ Word generation API:
 - **Rate-Limited Batching**: Handles Groq API rate limits
 - **Error Handling**: Retry logic for 429 errors
 - **Response Formatting**: Returns structured data
+
+### `app/api/generate-kdp-content/route.ts`
+KDP marketing content generation:
+- **Title Generation**: AI-powered book title suggestions
+- **Description Generation**: Amazon book description with keywords
+- **Rate Limiting**: Handles Groq API rate limits
+- **Error Handling**: Comprehensive error handling with retries
 
 ## 🔐 Authentication
 
@@ -405,21 +423,35 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 ### Book Mode
 
 1. **Enter Theme**: Type a main theme (e.g., "Gardening")
-2. **Set Chapters**: Choose number of chapters (default: 2)
-3. **Generate Structure**: Click "Generate Book Structure"
+2. **Configure Settings**: 
+   - Set difficulty level
+   - Set words per puzzle
+   - Set number of chapters (default: 2)
+   - Toggle word validation if desired
+3. **Generate Structure**: Click the search button next to theme input
+   - Progress bar appears at top of sidebar
    - AI creates sub-themes for each chapter
    - Words are generated for each chapter
 4. **Review & Edit**: 
+   - View all chapters in the Pages section (below CSV import)
+   - Click on any chapter to preview its puzzle
    - Edit chapter titles
    - Edit words per chapter
    - Add blank pages
    - Reorder chapters
-5. **Generate Puzzles**: Click "Generate All Puzzles"
+5. **KDP Marketing** (Optional):
+   - Generate book titles using AI
+   - Generate Amazon book description
+   - Copy generated content to clipboard
+6. **Generate Puzzles**: Click "Generate Pages" button
    - Creates puzzles for all chapters
-   - Shows progress bar
-6. **Download PDF**: 
+   - Shows progress bar at top
+7. **Customize PDF**: 
+   - Expand PDF Options section
+   - Adjust fonts, sizes, and options
+   - Add title page, copyright, etc.
+8. **Download PDF**: 
    - Preview PDF first
-   - Customize fonts and options
    - Download complete book
 
 ### Single Puzzle Mode
@@ -434,9 +466,11 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 ### CSV Import
 
 1. **Prepare CSV**: Create CSV with words (one per line or "Word, Clue" format)
-2. **Import**: Click "Bulk Import CSV" or "Import CSV Files"
-3. **Validation**: Optionally validate words
-4. **Auto-Chapter**: Each CSV becomes a chapter (Book Mode)
+2. **Set Words per Puzzle**: Configure how many words should go into each chapter
+3. **Import**: Click "Import CSV File" button
+4. **Validation**: Optionally validate words (checkbox in CSV import section)
+5. **Auto-Split**: Words are automatically split into chapters based on "Words per Puzzle" setting
+6. **Review**: Check the Pages section below to see all generated chapters
 
 ## ⚙️ Configuration
 
@@ -453,9 +487,12 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 ### PDF Options
 - **Page Sizes**: Letter, A4, or custom KDP sizes
 - **Fonts**: Google Fonts or standard fonts
-- **Font Size**: 4pt to 20pt for grid letters
+- **Font Size**: 4pt to 20pt for grid letters (adjustable slider)
+- **Heading Size**: 10pt to 24pt for puzzle titles (adjustable slider)
 - **Front Matter**: Title page, "Belongs To" page
+- **Copyright Text**: Add copyright text that appears on all pages
 - **Solution Style**: Transparent red lines with black outline
+- **Collapsible UI**: PDF options can be collapsed to maximize puzzle preview space
 
 ## 🐛 Troubleshooting
 
@@ -476,8 +513,10 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 - **Missing Fonts**: Check browser console for font loading errors
 
 ### Authentication Issues
-- **Check Environment Variables**: Ensure all `NEXT_PUBLIC_*` vars are set
-- **Clear localStorage**: Clear browser storage if stuck
+- **Check Environment Variables**: Ensure all auth environment variables are set (ADMIN_USERNAME, ADMIN_PASSWORD, etc.)
+- **Server-Side Only**: Passwords should NOT have `NEXT_PUBLIC_` prefix (they're server-only)
+- **Check API Route**: Verify `/api/auth` route is working (check server logs)
+- **Clear Cookies**: Clear browser cookies if authentication is stuck
 - **Restart Server**: Restart dev server after changing env vars
 
 ## 🚀 Deployment

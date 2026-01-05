@@ -97,7 +97,11 @@ export default function Home() {
   const [copyrightText, setCopyrightText] = useState('');
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(10); // Font size in points (like MS Word/Google Docs)
+  const [headingSize, setHeadingSize] = useState(16); // Heading size in points for puzzle titles
   const [enableWordValidation, setEnableWordValidation] = useState(true); // Enable dictionary validation
+  const [csvWordsPerPuzzle, setCsvWordsPerPuzzle] = useState(15); // Words per puzzle for CSV import
+  const [selectedPuzzleIndex, setSelectedPuzzleIndex] = useState<number | null>(null); // Selected puzzle index for preview
+  const [isPdfOptionsOpen, setIsPdfOptionsOpen] = useState(true); // PDF Options collapsed state
   const [addBlankPagesBetweenChapters, setAddBlankPagesBetweenChapters] = useState(false);
 
   // Authentication handlers
@@ -626,14 +630,14 @@ export default function Home() {
     return { words, hasClues };
   };
 
-  // Handle CSV file upload
+  // Handle CSV file upload (single file, split into chapters)
   const handleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Check file extension
     if (!file.name.toLowerCase().endsWith('.csv')) {
-      alert('Please upload a CSV file');
+      await showAlert({ message: 'Please upload a CSV file' });
       return;
     }
 
@@ -645,7 +649,7 @@ export default function Home() {
       console.log(`CSV Import: Sample words:`, words.slice(0, 5));
 
       if (words.length === 0) {
-        alert('No valid words found in CSV file. Please ensure the file contains words (one per line or in Word, Clue format).');
+        await showAlert({ message: 'No valid words found in CSV file. Please ensure the file contains words (one per line or in Word, Clue format).' });
         return;
       }
 
@@ -680,13 +684,13 @@ export default function Home() {
         const rejectedText = rejectedSample.map(r => `  • "${r.word}" - ${r.reason}`).join('\n');
         const moreText = rejectedWords.length > 10 ? `\n  ... and ${rejectedWords.length - 10} more` : '';
         
-        alert(
-          `❌ No words fit the current grid size (${gridSize}x${gridSize}).\n\n` +
+        await showAlert({
+          message: `❌ No words fit the current grid size (${gridSize}x${gridSize}).\n\n` +
           `All ${words.length} words were rejected:\n${rejectedText}${moreText}\n\n` +
           `Try:\n` +
           `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
           `- Checking your CSV file format`
-        );
+        });
         event.target.value = '';
         return;
       }
@@ -696,7 +700,7 @@ export default function Home() {
       let invalidWords: string[] = [];
       
       if (enableWordValidation) {
-        alert(`Validating ${wordsFilteredBySize.length} words... This may take a moment.`);
+        showToast('Validating words... This may take a moment.', 'info');
         const { valid, invalid } = await validateWords(wordsFilteredBySize, (validated, total) => {
           console.log(`Validated ${validated}/${total} words...`);
         });
@@ -705,18 +709,35 @@ export default function Home() {
       }
 
       if (finalWords.length === 0) {
-        alert('❌ No valid words found after validation. Please check your CSV file.');
+        await showAlert({ message: '❌ No valid words found after validation. Please check your CSV file.' });
         event.target.value = '';
         return;
       }
 
-      // Generate chapter title from filename (remove .csv extension)
-      const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
+      // Split words into chapters based on csvWordsPerPuzzle
+      const chapters: Array<{ title: string; words: string[] }> = [];
+      const baseTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Chapter';
+      
+      for (let i = 0; i < finalWords.length; i += csvWordsPerPuzzle) {
+        const chapterWords = finalWords.slice(i, i + csvWordsPerPuzzle);
+        const chapterNum = Math.floor(i / csvWordsPerPuzzle) + 1;
+        chapters.push({
+          title: `${baseTitle} ${chapterNum}`,
+          words: chapterWords
+        });
+      }
+
+      // Initialize or update book structure
+      const newStructure: BookStructure = {
+        bookTitle: bookStructure?.bookTitle || 'Imported Puzzle Book',
+        chapters: bookStructure ? [...bookStructure.chapters, ...chapters] : chapters
+      };
+      setBookStructure(newStructure);
 
       // Build success message
-      let message = `✅ Successfully imported ${finalWords.length} word(s) from "${chapterTitle}"`;
       const removedBySize = words.length - wordsFilteredBySize.length;
       const removedByValidation = enableWordValidation ? wordsFilteredBySize.length - finalWords.length : 0;
+      let message = `✅ Successfully imported ${finalWords.length} word(s) into ${chapters.length} chapter(s)`;
       
       if (removedBySize > 0 || removedByValidation > 0) {
         message += `\n\n⚠️ Removed:`;
@@ -730,172 +751,16 @@ export default function Home() {
         }
       }
 
-      // Initialize or update book structure
-      if (!bookStructure) {
-        // Create new book structure
-        const newStructure: BookStructure = {
-          bookTitle: 'Imported Puzzle Book',
-          chapters: [{
-            title: chapterTitle,
-            words: finalWords
-          }]
-        };
-        setBookStructure(newStructure);
-      } else {
-        // Add chapter to existing structure
-        const updated = { ...bookStructure };
-        updated.chapters.push({
-          title: chapterTitle,
-          words: finalWords
-        });
-        setBookStructure(updated);
-      }
-
       // Clear file input
       event.target.value = '';
 
-      alert(message);
+      await showAlert({ message });
     } catch (error) {
       console.error('Error importing CSV:', error);
-      alert(`❌ Failed to import CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      await showAlert({ message: `❌ Failed to import CSV file: ${error instanceof Error ? error.message : 'Unknown error'}` });
     }
-  }, [bookStructure, gridSize, enableWordValidation]);
+  }, [bookStructure, gridSize, enableWordValidation, csvWordsPerPuzzle, showAlert, showToast]);
 
-  // Handle multiple CSV files
-  const handleMultipleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    const validFiles = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.csv'));
-    
-    if (validFiles.length === 0) {
-      alert('Please select CSV files');
-      return;
-    }
-
-    try {
-      const maxWordLength = gridSize - 2;
-      let newChapters: Chapter[] = [];
-      let totalWords = 0;
-      let totalRemovedBySize = 0;
-      let totalRemovedByValidation = 0;
-      
-      if (enableWordValidation) {
-        alert(`Importing and validating words from ${validFiles.length} file(s)... This may take a moment.`);
-      }
-      
-      for (const file of validFiles) {
-        const text = await file.text();
-        const { words } = parseCSV(text);
-
-        console.log(`CSV Import: Parsed ${words.length} words from file "${file.name}"`);
-        console.log(`CSV Import: Sample words:`, words.slice(0, 5));
-
-        if (words.length > 0) {
-          // Filter by grid size
-          console.log(`CSV Import: Filtering words for ${gridSize}x${gridSize} grid (max length: ${maxWordLength})`);
-          const wordsFilteredBySize = words.filter(w => {
-            const word = w.toUpperCase().trim();
-            const isValid = word.length >= 4 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
-            if (!isValid) {
-              console.log(`CSV Import: Rejected "${word}" - length: ${word.length}, valid: ${/^[A-Z]+$/.test(word)}`);
-            }
-            return isValid;
-          });
-          console.log(`CSV Import: ${wordsFilteredBySize.length} words passed size filter (out of ${words.length})`);
-          
-          totalRemovedBySize += words.length - wordsFilteredBySize.length;
-          
-          // Validate words if enabled
-          let finalWords = wordsFilteredBySize;
-          if (enableWordValidation && wordsFilteredBySize.length > 0) {
-            const { valid, invalid } = await validateWords(wordsFilteredBySize);
-            finalWords = valid;
-            totalRemovedByValidation += invalid.length;
-          }
-
-          if (finalWords.length > 0) {
-            const chapterTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Imported Chapter';
-            newChapters.push({
-              title: chapterTitle,
-              words: finalWords
-            });
-            totalWords += finalWords.length;
-          }
-        }
-      }
-
-      if (newChapters.length === 0) {
-        // Collect detailed rejection info for debugging
-        let allRejectedWords: Array<{ word: string; reason: string }> = [];
-        
-        for (const file of validFiles) {
-          const text = await file.text();
-          const { words } = parseCSV(text);
-          
-          for (const word of words) {
-            const cleanWord = word.toUpperCase().trim();
-            if (cleanWord.length < 4) {
-              allRejectedWords.push({ word: cleanWord, reason: `Too short (${cleanWord.length} letters, min: 4)` });
-            } else if (cleanWord.length > maxWordLength) {
-              allRejectedWords.push({ word: cleanWord, reason: `Too long (${cleanWord.length} letters, max: ${maxWordLength})` });
-            } else if (!/^[A-Z]+$/.test(cleanWord)) {
-              allRejectedWords.push({ word: cleanWord, reason: `Contains non-letter characters` });
-            }
-          }
-        }
-        
-        const rejectedSample = allRejectedWords.slice(0, 10);
-        const rejectedText = rejectedSample.map(r => `  • "${r.word}" - ${r.reason}`).join('\n');
-        const moreText = allRejectedWords.length > 10 ? `\n  ... and ${allRejectedWords.length - 10} more` : '';
-        
-        alert(
-          `❌ No valid words found in any CSV files.\n\n` +
-          `Grid: ${gridSize}x${gridSize} (max word length: ${maxWordLength} letters)\n\n` +
-          `Rejected words:\n${rejectedText}${moreText}\n\n` +
-          `Try:\n` +
-          `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
-          `- Checking your CSV file format\n` +
-          `- Disabling word validation if words are valid but not in dictionary`
-        );
-        event.target.value = '';
-        return;
-      }
-
-      // Initialize or update book structure
-      if (!bookStructure) {
-        const newStructure: BookStructure = {
-          bookTitle: 'Imported Puzzle Book',
-          chapters: newChapters
-        };
-        setBookStructure(newStructure);
-      } else {
-        const updated = { ...bookStructure };
-        updated.chapters.push(...newChapters);
-        setBookStructure(updated);
-      }
-
-      // Clear file input
-      event.target.value = '';
-
-      // Build success message
-      let message = `✅ Successfully imported ${newChapters.length} chapter(s) with ${totalWords} word(s) from ${validFiles.length} CSV file(s)`;
-      if (totalRemovedBySize > 0 || totalRemovedByValidation > 0) {
-        message += `\n\n⚠️ Removed:`;
-        if (totalRemovedBySize > 0) {
-          message += `\n- ${totalRemovedBySize} word(s) too long/short for ${gridSize}x${gridSize} grid`;
-        }
-        if (totalRemovedByValidation > 0) {
-          message += `\n- ${totalRemovedByValidation} invalid/incomplete word(s)`;
-        }
-      }
-      
-      alert(message);
-    } catch (error) {
-      console.error('Error importing CSV files:', error);
-      alert(`❌ Failed to import CSV files: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }, [bookStructure, gridSize, enableWordValidation]);
 
   // Generate puzzles for all chapters
   const handleGeneratePuzzles = useCallback(() => {
@@ -1075,6 +940,13 @@ export default function Home() {
     }
   }, [generatedWords, customWords, gridSize, difficulty, mode, singleWords]);
 
+  // Update selected puzzle index when puzzles are generated
+  useEffect(() => {
+    if (mode === 'book' && bookPuzzles.length > 0 && selectedPuzzleIndex === null) {
+      setSelectedPuzzleIndex(0);
+    }
+  }, [bookPuzzles.length, mode, selectedPuzzleIndex]);
+
   // Show loading state while checking auth
   if (isCheckingAuth) {
   return (
@@ -1091,7 +963,9 @@ export default function Home() {
 
   // Display logic: Handle blank pages in preview
   const displayPuzzle = mode === 'book' && bookPuzzles.length > 0 
-    ? bookPuzzles[0] 
+    ? (selectedPuzzleIndex !== null && selectedPuzzleIndex < bookPuzzles.length 
+        ? bookPuzzles[selectedPuzzleIndex] 
+        : bookPuzzles[0])
     : puzzle;
 
   return (
@@ -1168,16 +1042,95 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 h-[calc(100vh-120px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-4 overflow-y-auto pr-2">
-            {/* Bulk Import CSV (Book Mode) */}
+            {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
+            {mode === 'book' && isGeneratingStructure && (
+              <div className="bg-blue-600 rounded-lg p-4 border border-blue-500 shadow-lg">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-white">
+                      {structureProgress.status || 'Generating book structure...'}
+                    </span>
+                    {structureProgress.total > 0 && (
+                      <span className="text-xs text-blue-100 font-semibold">
+                        {Math.round((structureProgress.current / structureProgress.total) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full bg-blue-800 rounded-full h-4 overflow-hidden">
+                    <div 
+                      className="bg-white h-4 rounded-full transition-all duration-200 ease-out"
+                      style={{ 
+                        width: structureProgress.total > 0 
+                          ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
+                          : '30%' // Indeterminate progress
+                      }}
+                    />
+                  </div>
+                  {structureProgress.total > 0 && (
+                    <div className="text-xs text-blue-100 text-center">
+                      {structureProgress.current} / {structureProgress.total} chapters
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Word Generation Progress (Single Mode) - Moved to top for visibility */}
+            {mode === 'single' && isGeneratingWords && (
+              <div className="bg-blue-600 rounded-lg p-4 border border-blue-500 shadow-lg">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-white">
+                      {wordGenerationProgress.status || 'Generating words...'}
+                    </span>
+                    {wordGenerationProgress.total > 0 && (
+                      <span className="text-xs text-blue-100 font-semibold">
+                        {Math.round((wordGenerationProgress.current / wordGenerationProgress.total) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full bg-blue-800 rounded-full h-4 overflow-hidden">
+                    <div 
+                      className="bg-white h-4 rounded-full transition-all duration-200 ease-out"
+                      style={{ 
+                        width: wordGenerationProgress.total > 0 
+                          ? `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
+                          : '30%' // Indeterminate progress
+                      }}
+                    />
+                  </div>
+                  {wordGenerationProgress.total > 0 && (
+                    <div className="text-xs text-blue-100 text-center">
+                      {wordGenerationProgress.current} / {wordGenerationProgress.total} words
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Single CSV Import (Book Mode) */}
             {mode === 'book' && (
               <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Bulk Import CSV
+                  Import CSV
                 </label>
                 <p className="text-xs text-slate-400 mb-3">
-                  Upload CSV files with words (one per line or Word, Clue format). Each CSV becomes a chapter.
+                  Upload a single CSV file with words. Words will be split into chapters based on "Words per Puzzle" setting.
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Words per Puzzle
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={csvWordsPerPuzzle}
+                      onChange={(e) => setCsvWordsPerPuzzle(Math.max(5, Math.min(50, parseInt(e.target.value) || 15)))}
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <label className="flex items-center gap-2 text-sm text-slate-300 mb-2">
                     <input
                       type="checkbox"
@@ -1191,8 +1144,7 @@ export default function Home() {
                     <input
                       type="file"
                       accept=".csv"
-                      multiple
-                      onChange={handleMultipleCSVImport}
+                      onChange={handleCSVImport}
                       className="hidden"
                       id="csv-import-input"
                     />
@@ -1203,140 +1155,276 @@ export default function Home() {
                       size="sm"
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      Import CSV Files
+                      Import CSV File
                     </Button>
                   </label>
                 </div>
               </div>
             )}
 
-            {/* Theme Input */}
+            {/* Grid Size Selector */}
             <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Main Theme
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                Grid Size
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                {[8, 10, 12, 15, 18, 20, 22, 25, 30].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setGridSize(size)}
+                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                      gridSize === size
+                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                        : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    {size}×{size}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2">
                 <input
-                  type="text"
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                  placeholder="e.g., Winter, Gardening..."
-                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isGeneratingStructure}
+                  type="number"
+                  value={gridSize}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val >= 5 && val <= 50) {
+                      setGridSize(val);
+                    }
+                  }}
+                  min={5}
+                  max={50}
+                  placeholder="Custom size"
+                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                <p className="text-xs text-slate-400 mt-1">Or enter custom size (5-50)</p>
+              </div>
+            </div>
+
+            {/* Chapter Management (Book Mode) */}
+            {mode === 'book' && bookStructure && !isGeneratingStructure && (
+              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-slate-300">Pages ({bookStructure.chapters.length})</label>
+                  <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-slate-600 hover:bg-slate-800">
+                    <FilePlus className="h-3 w-3 mr-1" /> Add Empty Page
+                  </Button>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {bookStructure.chapters.map((chapter, index) => {
+                    const hasPuzzle = bookPuzzles.length > 0 && bookPuzzles[index] !== undefined;
+                    const isSelected = selectedPuzzleIndex === index;
+                    return (
+                    <div key={index}>
+                      <div 
+                        className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''} ${isSelected && hasPuzzle ? 'ring-2 ring-blue-500 bg-slate-700' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700' : ''}`}
+                        onClick={() => {
+                          if (hasPuzzle && !chapter.isBlank) {
+                            setSelectedPuzzleIndex(index);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
+                          {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
+                          {editingChapterIndex === index ? (
+                            <input 
+                              autoFocus 
+                              value={editingTitle} 
+                              onChange={e => setEditingTitle(e.target.value)} 
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveChapter(index);
+                                if (e.key === 'Escape') {
+                                  setEditingChapterIndex(null);
+                                  setEditingTitle('');
+                                }
+                              }}
+                              className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
+                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)${hasPuzzle ? ' ✓' : ''}`}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
+                          <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
+                          {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
+                          {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-1 text-slate-400 hover:text-green-400" title="Edit words"><Search className="h-3 w-3" /></button>}
+                          <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                        </div>
+                      </div>
+                      {editingWordsIndex === index && !chapter.isBlank && (
+                        <div className="mt-2 p-3 bg-slate-800 rounded border border-slate-700">
+                          <label className="block text-xs font-medium text-slate-300 mb-2">
+                            Edit Words for "{chapter.title}" (comma or newline separated)
+                          </label>
+                          <textarea
+                            autoFocus
+                            value={editingWords}
+                            onChange={e => setEditingWords(e.target.value)}
+                            placeholder="WORD1, WORD2, WORD3..."
+                            rows={4}
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">Save Words</Button>
+                            <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600 hover:bg-slate-700">Cancel</Button>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-2">Words will be automatically converted to uppercase. Only letters allowed (4+ characters).</p>
+                        </div>
+                      )}
+                    </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={addBlankPagesBetweenChapters}
+                      onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span>Add blank pages between chapters</span>
+                  </label>
+                  <Button
+                    onClick={handleGeneratePuzzles}
+                    disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    size="sm"
+                  >
+                    {isGeneratingPuzzle 
+                      ? `Generating... ${generationProgress.current}/${generationProgress.total}`
+                      : 'Generate Pages'
+                    }
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Consolidated Controls Block */}
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-300 mb-4">Puzzle Settings</h3>
+              
+              <div className="space-y-4">
+                {/* Main Theme */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">
+                    Main Theme
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value)}
+                      placeholder="e.g., Winter, Gardening..."
+                      className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      disabled={isGeneratingStructure}
+                    />
+                    {mode === 'book' ? (
+                      <Button
+                        onClick={handleGenerateStructure}
+                        disabled={isGeneratingStructure || !theme.trim()}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        size="sm"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleGenerateWords}
+                        disabled={isGeneratingWords || !theme.trim()}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        size="sm"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Word Validation - Directly under theme */}
+                <div>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enableWordValidation}
+                      onChange={(e) => setEnableWordValidation(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span>Word Validation</span>
+                  </label>
+                  <p className="text-xs text-slate-400 mt-1 ml-6">
+                    Check words against dictionary API (removes spelling errors)
+                  </p>
+                </div>
+
+                {/* Difficulty */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Difficulty
+                  </label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+
+                {/* Words per Puzzle / Number of Words */}
                 {mode === 'book' ? (
-                  <Button
-                    onClick={handleGenerateStructure}
-                    disabled={isGeneratingStructure || !theme.trim()}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">
+                        Words per Puzzle
+                      </label>
+                      <input
+                        type="number"
+                        value={wordsPerPuzzle}
+                        onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
+                        min={5}
+                        max={30}
+                        className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-1">
+                        Number of Chapters
+                      </label>
+                      <input
+                        type="number"
+                        value={numChapters}
+                        onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
+                        min={5}
+                        max={100}
+                        className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      />
+                    </div>
+                  </>
                 ) : (
-                  <Button
-                    onClick={handleGenerateWords}
-                    disabled={isGeneratingWords || !theme.trim()}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Number of Words
+                    </label>
+                    <input
+                      type="number"
+                      value={singleWords}
+                      onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
+                      min={5}
+                      max={50}
+                      className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
                 )}
               </div>
             </div>
-
-            {/* Book Title Editor (Book Mode) */}
-            {mode === 'book' && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Book Title</label>
-                <input
-                  type="text"
-                  value={bookStructure?.bookTitle || ''}
-                  onChange={(e) => {
-                    if (bookStructure) {
-                      setBookStructure({ ...bookStructure, bookTitle: e.target.value });
-                    } else {
-                      // Initialize bookStructure if it doesn't exist
-                      setBookStructure({ bookTitle: e.target.value, chapters: [] });
-                    }
-                  }}
-                  placeholder="Enter book title or paste from generated titles"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">You can paste a title from the generated titles below</p>
-              </div>
-            )}
-
-            {/* Word Validation Toggle */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer mb-2">
-                <input
-                  type="checkbox"
-                  checked={enableWordValidation}
-                  onChange={(e) => setEnableWordValidation(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                />
-                <span>Word Validation</span>
-              </label>
-              <p className="text-xs text-slate-400">
-                When enabled, words are checked against a dictionary API to remove spelling errors and incomplete words. Applies to all modes (Book, Single, CSV Import).
-              </p>
-            </div>
-
-            {/* Structure Generation Progress (Book Mode) */}
-            {mode === 'book' && isGeneratingStructure && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-300">
-                      {structureProgress.status || 'Generating book structure...'}
-                    </span>
-                    {structureProgress.total > 0 && (
-                      <span className="text-xs text-slate-400 font-semibold">
-                        {Math.round((structureProgress.current / structureProgress.total) * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-3 rounded-full transition-all duration-200 ease-out"
-                      style={{ 
-                        width: structureProgress.total > 0 
-                          ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
-                          : '30%' // Indeterminate progress
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Word Generation Progress (Single Mode) */}
-            {mode === 'single' && isGeneratingWords && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-300">
-                      {wordGenerationProgress.status || 'Generating words...'}
-                    </span>
-                    {wordGenerationProgress.total > 0 && (
-                      <span className="text-xs text-slate-400 font-semibold">
-                        {Math.round((wordGenerationProgress.current / wordGenerationProgress.total) * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-3 rounded-full transition-all duration-200 ease-out"
-                      style={{ 
-                        width: wordGenerationProgress.total > 0 
-                          ? `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
-                          : '30%' // Indeterminate progress
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Page Size Selector (Book Mode) */}
             {mode === 'book' && (
@@ -1392,22 +1480,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Book Title Editor (Book Mode) */}
-            {mode === 'book' && bookStructure && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Book Title</label>
-                <input
-                  type="text"
-                  value={bookStructure.bookTitle}
-                  onChange={(e) => {
-                    setBookStructure(prev => prev ? { ...prev, bookTitle: e.target.value } : null);
-                  }}
-                  placeholder="Enter book title or paste from generated titles"
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">You can paste a title from the generated titles below</p>
-              </div>
-            )}
 
             {/* Chapter Management (Book Mode) */}
             {mode === 'book' && bookStructure && !isGeneratingStructure && (
@@ -1419,9 +1491,19 @@ export default function Home() {
                   </Button>
                 </div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {bookStructure.chapters.map((chapter, index) => (
+                  {bookStructure.chapters.map((chapter, index) => {
+                    const hasPuzzle = bookPuzzles.length > 0 && bookPuzzles[index] !== undefined;
+                    const isSelected = selectedPuzzleIndex === index;
+                    return (
                     <div key={index}>
-                      <div className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''}`}>
+                      <div 
+                        className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''} ${isSelected && hasPuzzle ? 'ring-2 ring-blue-500 bg-slate-700' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700' : ''}`}
+                        onClick={() => {
+                          if (hasPuzzle && !chapter.isBlank) {
+                            setSelectedPuzzleIndex(index);
+                          }
+                        }}
+                      >
                         <div className="flex items-center gap-2 overflow-hidden flex-1">
                           {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
                           {editingChapterIndex === index ? (
@@ -1437,15 +1519,16 @@ export default function Home() {
                                 }
                               }}
                               className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
+                              onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
                             <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
-                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)`}
+                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)${hasPuzzle ? ' ✓' : ''}`}
                             </span>
                           )}
                         </div>
                         
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
                           <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
                           {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
@@ -1474,7 +1557,8 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-3 space-y-2">
                   <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
@@ -1501,115 +1585,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* KDP Content Generation (Book Mode) */}
-            {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-3">KDP Marketing Tools</label>
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    onClick={handleGenerateBookTitles}
-                    disabled={isGeneratingKdpContent}
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                    size="sm"
-                  >
-                    {isGeneratingKdpContent && kdpContentType === 'titles' ? (
-                      'Generating...'
-                    ) : (
-                      <>
-                        <Type className="h-4 w-4 mr-2" />
-                        Generate Titles
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={handleGenerateKdpDescription}
-                    disabled={isGeneratingKdpContent}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                    size="sm"
-                  >
-                    {isGeneratingKdpContent && kdpContentType === 'description' ? (
-                      'Generating...'
-                    ) : (
-                      <>
-                        <FileText className="h-4 w-4 mr-2" />
-                        Generate Description
-                      </>
-                    )}
-                  </Button>
-                </div>
-
-                {/* Generated Titles Display */}
-                {kdpTitles && kdpTitles.length > 0 && (
-                  <div className="mb-4 p-3 bg-slate-800 rounded border border-slate-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-slate-300">Suggested Titles:</label>
-                      <button
-                        onClick={() => {
-                          const allTitles = kdpTitles.join('\n');
-                          handleCopyToClipboard(allTitles, 'titles');
-                        }}
-                        className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
-                        title="Copy all titles"
-                      >
-                        {copiedText === 'titles' ? (
-                          <Check className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      {kdpTitles.map((title, index) => (
-                        <div key={index} className="flex items-start gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 transition-colors">
-                          <span className="text-xs text-slate-400 mt-0.5">{index + 1}.</span>
-                          <span className="flex-1 text-sm text-slate-200">{title}</span>
-                          <button
-                            onClick={() => {
-                              handleCopyToClipboard(title, `title-${index}`);
-                              // Also update book title
-                              if (bookStructure) {
-                                setBookStructure({ ...bookStructure, bookTitle: title });
-                              }
-                            }}
-                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
-                            title="Copy and use as book title"
-                          >
-                            {copiedText === `title-${index}` ? (
-                              <Check className="h-3 w-3 text-green-400" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Generated Description Display */}
-                {kdpDescription && (
-                  <div className="p-3 bg-slate-800 rounded border border-slate-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-medium text-slate-300">KDP Book Description:</label>
-                      <button
-                        onClick={() => handleCopyToClipboard(kdpDescription, 'description')}
-                        className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
-                        title="Copy description"
-                      >
-                        {copiedText === 'description' ? (
-                          <Check className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                    <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
-                      {kdpDescription}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Custom Words (Single Mode) */}
             {mode === 'single' && (
@@ -1663,109 +1638,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* Grid Size Selector */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="block text-sm font-medium text-slate-300 mb-3">
-                Grid Size
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[8, 10, 12, 15, 18, 20, 22, 25, 30].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setGridSize(size)}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
-                      gridSize === size
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
-                    }`}
-                  >
-                    {size}×{size}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2">
-                <input
-                  type="number"
-                  value={gridSize}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val >= 5 && val <= 50) {
-                      setGridSize(val);
-                    }
-                  }}
-                  min={5}
-                  max={50}
-                  placeholder="Custom size"
-                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">Or enter custom size (5-50)</p>
-              </div>
-            </div>
-
             {/* Mode-specific Controls */}
-            {mode === 'book' ? (
-              <>
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Number of Chapters
-                  </label>
-                  <input
-                    type="number"
-                    value={numChapters}
-                    onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
-                    min={5}
-                    max={100}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Number of chapters/sub-themes to generate
-          </p>
-        </div>
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Words per Puzzle
-                  </label>
-                  <input
-                    type="number"
-                    value={wordsPerPuzzle}
-                    onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
-                    min={5}
-                    max={30}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Number of Words
-                </label>
-                <input
-                  type="number"
-                  value={singleWords}
-                  onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
-                  min={5}
-                  max={50}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            {/* Difficulty */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Difficulty
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
 
 
             {/* Generate Button (Single Mode) */}
@@ -1810,272 +1683,381 @@ export default function Home() {
               </div>
             )}
 
-            {/* PDF Front Matter Options (Book Mode) */}
-            {mode === 'book' && bookPuzzles.length > 0 && (
-              <>
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">PDF Options</h3>
-                  
-                  {/* Include Title Page */}
-                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeTitlePage}
-                      onChange={(e) => setIncludeTitlePage(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-slate-300">Include Title Page</span>
-                  </label>
-                  
-                  {/* Include "This Book Belongs To" Page */}
-                  <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeBelongsToPage}
-                      onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-slate-300">Include "This Book Belongs To" Page</span>
-                  </label>
-                  
-                  {/* Copyright Text */}
-                  {includeTitlePage && (
-                    <div className="mt-3">
-                      <label className="block text-xs text-slate-400 mb-1">
-                        Copyright Text (optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={copyrightText}
-                        onChange={(e) => setCopyrightText(e.target.value)}
-                        placeholder="Your Name or Company"
-                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Answer Key Style */}
-                  {/* Font Selection */}
-                  <div className="mt-3">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Font
-                    </label>
-                    <select
-                      value={selectedFont}
-                      onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {AVAILABLE_FONTS.map((font) => {
-                        // Get font family name for preview
-                        let fontFamily = 'inherit';
-                        if (font.type === 'standard') {
-                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
-                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
-                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
-                        } else if (font.type === 'google') {
-                          // Map font IDs to Google Font names
-                          const fontMap: { [key: string]: string } = {
-                            'roboto': 'Roboto, sans-serif',
-                            'roboto-bold': 'Roboto, sans-serif',
-                            'open-sans': '"Open Sans", sans-serif',
-                            'open-sans-bold': '"Open Sans", sans-serif',
-                            'lora': 'Lora, serif',
-                            'lora-bold': 'Lora, serif',
-                            'playfair-display': '"Playfair Display", serif',
-                            'playfair-display-bold': '"Playfair Display", serif',
-                            'playpen-sans': '"Playpen Sans", cursive',
-                            'playpen-sans-bold': '"Playpen Sans", cursive',
-                            'schoolbell': '"Schoolbell", cursive',
-                          };
-                          fontFamily = fontMap[font.id] || 'inherit';
-                        }
-                        
-                        return (
-                          <option
-                            key={font.id}
-                            value={font.id}
-                            style={{ fontFamily }}
-                          >
-                            {font.name}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-                  
-                  {/* Font Size */}
-                  <div className="mt-3">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Grid Letter Size ({fontSize}pt)
-                    </label>
-                    <input
-                      type="range"
-                      min="4"
-                      max="20"
-                      step="1"
-                      value={fontSize}
-                      onChange={(e) => setFontSize(parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>4pt</span>
-                      <span>12pt</span>
-                      <span>20pt</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <PDFPreviewModal
-                    puzzles={bookPuzzles}
-                    title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-                    includeTitlePage={includeTitlePage}
-                    includeBelongsToPage={includeBelongsToPage}
-                    copyrightText={copyrightText}
-                    fontId={selectedFont}
-                    fontSize={fontSize}
-                    pageFormat={pageSize}
-                  />
-                  <PDFDownloadButton
-                    puzzles={bookPuzzles}
-                    title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-                    includeTitlePage={includeTitlePage}
-                    includeBelongsToPage={includeBelongsToPage}
-                    copyrightText={copyrightText}
-                    fontId={selectedFont}
-                    fontSize={fontSize}
-                    pageFormat={pageSize}
-                  />
-                </div>
-              </>
-            )}
-            {mode === 'single' && puzzle && (
-              <>
-                <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                  {/* Font Selection */}
-                  <div className="mt-3">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Font
-                    </label>
-                    <select
-                      value={selectedFont}
-                      onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {AVAILABLE_FONTS.map((font) => {
-                        // Get font family name for preview
-                        let fontFamily = 'inherit';
-                        if (font.type === 'standard') {
-                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
-                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
-                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
-                        } else if (font.type === 'google') {
-                          // Map font IDs to Google Font names
-                          const fontMap: { [key: string]: string } = {
-                            'roboto': 'Roboto, sans-serif',
-                            'roboto-bold': 'Roboto, sans-serif',
-                            'open-sans': '"Open Sans", sans-serif',
-                            'open-sans-bold': '"Open Sans", sans-serif',
-                            'lora': 'Lora, serif',
-                            'lora-bold': 'Lora, serif',
-                            'playfair-display': '"Playfair Display", serif',
-                            'playfair-display-bold': '"Playfair Display", serif',
-                            'playpen-sans': '"Playpen Sans", cursive',
-                            'playpen-sans-bold': '"Playpen Sans", cursive',
-                            'schoolbell': '"Schoolbell", cursive',
-                          };
-                          fontFamily = fontMap[font.id] || 'inherit';
-                        }
-                        
-                        return (
-                          <option
-                            key={font.id}
-                            value={font.id}
-                            style={{ fontFamily }}
-                          >
-                            {font.name}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-                  
-                  {/* Font Size */}
-                  <div className="mt-3">
-                    <label className="block text-xs text-slate-400 mb-1">
-                      Grid Letter Size ({fontSize}pt)
-                    </label>
-                    <input
-                      type="range"
-                      min="4"
-                      max="20"
-                      step="1"
-                      value={fontSize}
-                      onChange={(e) => setFontSize(parseInt(e.target.value))}
-                      className="w-full"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                      <span>4pt</span>
-                      <span>12pt</span>
-                      <span>20pt</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <PDFPreviewModal
-                    puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                    title={`Word Search - ${theme || 'Puzzle'}`}
-                    fontId={selectedFont}
-                    fontSize={fontSize}
-                    pageFormat={{ width: 8.5, height: 11 }}
-                  />
-                  <PDFDownloadButton
-                    puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                    title={`Word Search - ${theme || 'Puzzle'}`}
-                    fontId={selectedFont}
-                    fontSize={fontSize}
-                    pageFormat={{ width: 8.5, height: 11 }}
-                  />
-                </div>
-              </>
-            )}
           </aside>
 
           {/* Right Side - Preview */}
-          <main className="overflow-hidden">
-            {displayPuzzle ? (
-              'isBlank' in displayPuzzle ? (
-                <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
+          <main className="overflow-hidden flex flex-col">
+            {/* PDF Options - Moved to top of preview area */}
+            {((mode === 'book' && bookPuzzles.length > 0) || (mode === 'single' && puzzle)) && (
+              <div className="bg-slate-900 rounded-lg border border-slate-800 mb-4">
+                <button
+                  onClick={() => setIsPdfOptionsOpen(!isPdfOptionsOpen)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
+                >
+                  <h3 className="text-sm font-semibold text-slate-300">PDF Options</h3>
+                  {isPdfOptionsOpen ? (
+                    <ChevronUp className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  )}
+                </button>
+                {isPdfOptionsOpen && (
+                  <div className="p-4 overflow-y-auto max-h-[40vh]">
+                
+                {/* Book Title (Book Mode Only) */}
+                {mode === 'book' && (
+                  <div className="mb-4">
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Book Title
+                    </label>
+                    <input
+                      type="text"
+                      value={bookStructure?.bookTitle || ''}
+                      onChange={(e) => {
+                        if (bookStructure) {
+                          setBookStructure({ ...bookStructure, bookTitle: e.target.value });
+                        } else {
+                          setBookStructure({ bookTitle: e.target.value, chapters: [] });
+                        }
+                      }}
+                      placeholder="Enter book title"
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+                {/* KDP Marketing Tools (Book Mode Only) */}
+                {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
+                  <div className="mb-4 p-3 bg-slate-800 rounded border border-slate-700">
+                    <label className="block text-xs font-medium text-slate-300 mb-2">KDP Marketing Tools</label>
+                    <div className="flex gap-2 mb-3">
+                      <Button
+                        onClick={handleGenerateBookTitles}
+                        disabled={isGeneratingKdpContent}
+                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                        size="sm"
+                      >
+                        {isGeneratingKdpContent && kdpContentType === 'titles' ? (
+                          'Generating...'
+                        ) : (
+                          <>
+                            <Type className="h-4 w-4 mr-2" />
+                            Generate Titles
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleGenerateKdpDescription}
+                        disabled={isGeneratingKdpContent}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                        size="sm"
+                      >
+                        {isGeneratingKdpContent && kdpContentType === 'description' ? (
+                          'Generating...'
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Generate Description
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Generated Titles Display */}
+                    {kdpTitles && kdpTitles.length > 0 && (
+                      <div className="mb-3 p-2 bg-slate-700 rounded border border-slate-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-medium text-slate-300">Suggested Titles:</label>
+                          <button
+                            onClick={() => {
+                              const allTitles = kdpTitles.join('\n');
+                              handleCopyToClipboard(allTitles, 'titles');
+                            }}
+                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                            title="Copy all titles"
+                          >
+                            {copiedText === 'titles' ? (
+                              <Check className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {kdpTitles.map((title, index) => (
+                            <div key={index} className="flex items-start gap-2 p-1.5 bg-slate-600 rounded hover:bg-slate-500 transition-colors">
+                              <span className="text-xs text-slate-400 mt-0.5">{index + 1}.</span>
+                              <span className="flex-1 text-xs text-slate-200">{title}</span>
+                              <button
+                                onClick={() => {
+                                  handleCopyToClipboard(title, `title-${index}`);
+                                  if (bookStructure) {
+                                    setBookStructure({ ...bookStructure, bookTitle: title });
+                                  }
+                                }}
+                                className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
+                                title="Copy and use as book title"
+                              >
+                                {copiedText === `title-${index}` ? (
+                                  <Check className="h-3 w-3 text-green-400" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generated Description Display */}
+                    {kdpDescription && (
+                      <div className="p-2 bg-slate-700 rounded border border-slate-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-medium text-slate-300">KDP Description:</label>
+                          <button
+                            onClick={() => handleCopyToClipboard(kdpDescription, 'description')}
+                            className="p-1 text-slate-400 hover:text-blue-400 transition-colors"
+                            title="Copy description"
+                          >
+                            {copiedText === 'description' ? (
+                              <Check className="h-3 w-3 text-green-400" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-24 overflow-y-auto">{kdpDescription}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  {/* Font Selection */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Font
+                    </label>
+                    <select
+                      value={selectedFont}
+                      onChange={(e) => setSelectedFont(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {AVAILABLE_FONTS.map((font) => {
+                        // Get font family name for preview
+                        let fontFamily = 'inherit';
+                        if (font.type === 'standard') {
+                          fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
+                                       font.id === 'times' ? 'Times, "Times New Roman", serif' :
+                                       font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
+                        } else if (font.type === 'google') {
+                          // Map font IDs to Google Font names
+                          const fontMap: { [key: string]: string } = {
+                            'roboto': 'Roboto, sans-serif',
+                            'roboto-bold': 'Roboto, sans-serif',
+                            'open-sans': '"Open Sans", sans-serif',
+                            'open-sans-bold': '"Open Sans", sans-serif',
+                            'lora': 'Lora, serif',
+                            'lora-bold': 'Lora, serif',
+                            'playfair-display': '"Playfair Display", serif',
+                            'playfair-display-bold': '"Playfair Display", serif',
+                            'playpen-sans': '"Playpen Sans", cursive',
+                            'playpen-sans-bold': '"Playpen Sans", cursive',
+                            'schoolbell': '"Schoolbell", cursive',
+                          };
+                          fontFamily = fontMap[font.id] || 'inherit';
+                        }
+                        
+                        return (
+                          <option
+                            key={font.id}
+                            value={font.id}
+                            style={{ fontFamily }}
+                          >
+                            {font.name}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  
+                  {/* Grid Letter Size */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Grid Letter Size ({fontSize}pt)
+                    </label>
+                    <input
+                      type="range"
+                      min="4"
+                      max="20"
+                      step="1"
+                      value={fontSize}
+                      onChange={(e) => setFontSize(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>4pt</span>
+                      <span>12pt</span>
+                      <span>20pt</span>
+                    </div>
+                  </div>
+
+                  {/* Heading Size */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      Puzzle Title Size ({headingSize}pt)
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="24"
+                      step="1"
+                      value={headingSize}
+                      onChange={(e) => setHeadingSize(parseInt(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>10pt</span>
+                      <span>16pt</span>
+                      <span>24pt</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Book Mode Only Options */}
+                {mode === 'book' && (
+                  <div className="mb-4 space-y-2">
+                    {/* Include Title Page */}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeTitlePage}
+                        onChange={(e) => setIncludeTitlePage(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-300">Include Title Page</span>
+                    </label>
+                    
+                    {/* Include "This Book Belongs To" Page */}
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeBelongsToPage}
+                        onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-slate-300">Include "This Book Belongs To" Page</span>
+                    </label>
+                    
+                    {/* Copyright Text */}
+                    {includeTitlePage && (
+                      <div className="mt-2">
+                        <label className="block text-xs text-slate-400 mb-1">
+                          Copyright Text (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={copyrightText}
+                          onChange={(e) => setCopyrightText(e.target.value)}
+                          placeholder="Your Name or Company"
+                          className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Download Buttons */}
+                <div className="space-y-2">
+                  {mode === 'book' && bookPuzzles.length > 0 && (
+                    <>
+                      <PDFPreviewModal
+                        puzzles={bookPuzzles}
+                        title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
+                        includeTitlePage={includeTitlePage}
+                        includeBelongsToPage={includeBelongsToPage}
+                        copyrightText={copyrightText}
+                        fontId={selectedFont}
+                        fontSize={fontSize}
+                        headingSize={headingSize}
+                        pageFormat={pageSize}
+                      />
+                      <PDFDownloadButton
+                        puzzles={bookPuzzles}
+                        title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
+                        includeTitlePage={includeTitlePage}
+                        includeBelongsToPage={includeBelongsToPage}
+                        copyrightText={copyrightText}
+                        fontId={selectedFont}
+                        fontSize={fontSize}
+                        headingSize={headingSize}
+                        pageFormat={pageSize}
+                      />
+                    </>
+                  )}
+                  {mode === 'single' && puzzle && (
+                    <>
+                      <PDFPreviewModal
+                        puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
+                        title={`Word Search - ${theme || 'Puzzle'}`}
+                        fontId={selectedFont}
+                        fontSize={fontSize}
+                        headingSize={headingSize}
+                        pageFormat={{ width: 8.5, height: 11 }}
+                      />
+                      <PDFDownloadButton
+                        puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
+                        title={`Word Search - ${theme || 'Puzzle'}`}
+                        fontId={selectedFont}
+                        fontSize={fontSize}
+                        headingSize={headingSize}
+                        pageFormat={{ width: 8.5, height: 11 }}
+                      />
+                    </>
+                  )}
+                </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Puzzle Preview */}
+            <div className={`flex-1 overflow-auto min-h-0 transition-all ${!isPdfOptionsOpen ? 'min-h-[calc(100vh-200px)]' : ''}`}>
+              {displayPuzzle ? (
+                'isBlank' in displayPuzzle ? (
+                  <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
+                    <div className="text-center">
+                      <File className="h-16 w-16 mx-auto mb-2 text-slate-300" />
+                      <p>Blank Page</p>
+                      <p className="text-xs mt-1">(Will be empty in PDF)</p>
+                    </div>
+                  </div>
+                ) : (
+                  <PuzzlePreview
+                    grid={(displayPuzzle as PuzzleResult).grid}
+                    placedWords={(displayPuzzle as PuzzleResult).placedWords}
+                    title={mode === 'book' && 'chapterTitle' in displayPuzzle
+                      ? `${displayPuzzle.chapterTitle} - Puzzle ${bookPuzzles.findIndex(p => p === displayPuzzle) + 1} of ${bookPuzzles.length}`
+                      : theme || 'Word Search Puzzle'
+                    }
+                  />
+                )
+              ) : mode === 'book' && bookStructure ? (
+                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800">
                   <div className="text-center">
-                    <File className="h-16 w-16 mx-auto mb-2 text-slate-300" />
-                    <p>Blank Page</p>
-                    <p className="text-xs mt-1">(Will be empty in PDF)</p>
+                    <BookOpen className="h-16 w-16 mx-auto mb-4 text-slate-600" />
+                    <p className="text-slate-400">Click "Generate Pages" to create puzzles for all chapters</p>
                   </div>
                 </div>
               ) : (
-                <PuzzlePreview
-                  grid={(displayPuzzle as PuzzleResult).grid}
-                  placedWords={(displayPuzzle as PuzzleResult).placedWords}
-                  title={mode === 'book' && 'chapterTitle' in displayPuzzle
-                    ? `${displayPuzzle.chapterTitle} - Puzzle ${bookPuzzles.findIndex(p => p === displayPuzzle) + 1} of ${bookPuzzles.length}`
-                    : theme || 'Word Search Puzzle'
-                  }
-                />
-              )
-            ) : mode === 'book' && bookStructure ? (
-              <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800">
-                <div className="text-center">
-                  <BookOpen className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-                  <p className="text-slate-400">Click "Generate Pages" to create puzzles for all chapters</p>
+                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 p-6">
+                  <div className="w-full max-w-2xl">
+                    <InstructionsPanel mode={mode} />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 p-6">
-                <div className="w-full max-w-2xl">
-                  <InstructionsPanel mode={mode} />
-                </div>
-              </div>
-            )}
+              )}
+            </div>
       </main>
         </div>
       </div>
