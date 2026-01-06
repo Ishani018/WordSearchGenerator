@@ -21,6 +21,7 @@ export interface PDFDownloadButtonProps {
   fontSize?: number; // Font size in points for grid letters (e.g., 10 = 10pt)
   headingSize?: number; // Font size in points for puzzle titles (e.g., 16 = 16pt)
   pageFormat: { width: number; height: number }; // New prop for page size
+  margins?: { left: number; right: number; top: number; bottom: number }; // Custom margins in inches
 }
 
 // Export reusable PDF generation function
@@ -33,7 +34,8 @@ export async function generatePDFDoc({
   fontId,
   fontSize = 10, // Default 10pt
   headingSize = 16, // Default 16pt
-  pageFormat
+  pageFormat,
+  margins
 }: PDFDownloadButtonProps): Promise<jsPDF> {
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -80,29 +82,46 @@ export async function generatePDFDoc({
   const pageWidth = pageFormat.width;
   const pageHeight = pageFormat.height;
   
-  // Dynamic margins based on page size - smaller pages get smaller margins
-  // Increased margins slightly for better borders
-  const pageArea = pageWidth * pageHeight;
-  let margin: number;
-  if (pageArea < 45) {
-    // Very small pages (5x8 = 40, 5.25x8 = 42)
-    margin = 0.35;
-  } else if (pageArea < 60) {
-    // Small-medium pages (6x9 = 54, 5.5x8.5 = 46.75)
-    margin = 0.4;
-  } else if (pageArea < 80) {
-    // Medium pages (7x10 = 70)
-    margin = 0.5;
+  // Use custom margins if provided, otherwise calculate dynamic margins based on page size
+  let marginLeft: number;
+  let marginRight: number;
+  let marginTop: number;
+  let marginBottom: number;
+  
+  if (margins) {
+    // Use custom margins
+    marginLeft = margins.left;
+    marginRight = margins.right;
+    marginTop = margins.top;
+    marginBottom = margins.bottom;
   } else {
-    // Large pages (8.5x11 = 93.5, A4 = 96.6)
-    margin = 0.6;
+    // Dynamic margins based on page size - smaller pages get smaller margins
+    const pageArea = pageWidth * pageHeight;
+    let margin: number;
+    if (pageArea < 45) {
+      // Very small pages (5x8 = 40, 5.25x8 = 42)
+      margin = 0.35;
+    } else if (pageArea < 60) {
+      // Small-medium pages (6x9 = 54, 5.5x8.5 = 46.75)
+      margin = 0.4;
+    } else if (pageArea < 80) {
+      // Medium pages (7x10 = 70)
+      margin = 0.5;
+    } else {
+      // Large pages (8.5x11 = 93.5, A4 = 96.6)
+      margin = 0.6;
+    }
+    marginLeft = margin;
+    marginRight = margin;
+    marginTop = margin;
+    marginBottom = margin;
   }
   
   let currentPage = 1;
   
   // FRONT MATTER: Title Page
   if (includeTitlePage) {
-    drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight, margin, fontName, fontSize);
+    drawTitlePage(doc, title, copyrightText, pageWidth, pageHeight, marginLeft, fontName, fontSize);
     currentPage++;
   }
   
@@ -111,7 +130,7 @@ export async function generatePDFDoc({
     if (currentPage > 1) {
       doc.addPage([pageWidth, pageHeight]);
     }
-    drawBelongsToPage(doc, pageWidth, pageHeight, margin, fontName, fontSize);
+    drawBelongsToPage(doc, pageWidth, pageHeight, marginLeft, fontName, fontSize);
     currentPage++;
   }
   
@@ -151,7 +170,10 @@ export async function generatePDFDoc({
       title, 
       pageWidth, 
       pageHeight, 
-      margin, 
+      marginLeft,
+      marginRight,
+      marginTop,
+      marginBottom, 
       currentPage, 
       fontName, 
       fontSize,
@@ -192,7 +214,10 @@ export async function generatePDFDoc({
         title, 
         pageWidth, 
         pageHeight, 
-        margin, 
+        marginLeft,
+        marginRight,
+        marginTop,
+        marginBottom,
         fontName, 
         fontSize,
         copyrightText
@@ -314,7 +339,10 @@ function drawPuzzlePage(
   bookTitle: string,
   pageWidth: number,
   pageHeight: number,
-  margin: number,
+  marginLeft: number,
+  marginRight: number,
+  marginTop: number,
+  marginBottom: number,
   pageNum: number,
   fontName?: string,
   fontSize: number = 10, // Font size in points for grid letters
@@ -332,7 +360,7 @@ function drawPuzzlePage(
   const gridSize = grid.length;
   
   // Calculate usable width (accounting for margins)
-  const usableWidth = pageWidth - margin * 2;
+  const usableWidth = pageWidth - marginLeft - marginRight;
   const contentCenterX = pageWidth / 2;
   
   // Puzzle title - use chapter title if available (fontSize only affects grid letters)
@@ -345,7 +373,7 @@ function drawPuzzlePage(
   
   // Split long titles if needed
   const titleLines = doc.splitTextToSize(puzzleTitle, usableWidth * 0.9);
-  let titleY = margin + 0.3;
+  let titleY = marginTop + 0.3;
   titleLines.forEach((line: string) => {
     doc.text(line, contentCenterX, titleY, { align: 'center' });
     titleY += 0.2; // Fixed line spacing
@@ -363,7 +391,7 @@ function drawPuzzlePage(
   });
   
   // Update title space based on actual content height
-  const actualTitleSpace = instructionY - margin + 0.1;
+  const actualTitleSpace = instructionY - marginTop + 0.1;
   
   // Layout Logic - Dependent on dynamic PageWidth/Height
   // Use actual title space calculated above, or fallback to minimum
@@ -381,7 +409,7 @@ function drawPuzzlePage(
   }
   
   const footerSpace = 0.3;
-  const availableHeight = pageHeight - margin * 2 - titleSpace - wordListSpace - footerSpace;
+  const availableHeight = pageHeight - marginTop - marginBottom - titleSpace - wordListSpace - footerSpace;
   const availableWidth = usableWidth;
   
   // Calculate cell size based on available space
@@ -410,8 +438,8 @@ function drawPuzzlePage(
   const scaledGridHeight = gridHeight * scale;
   
   // Center grid in usable area
-  const startX = margin + (usableWidth - scaledGridWidth) / 2;
-  const startY = margin + titleSpace;
+  const startX = marginLeft + (usableWidth - scaledGridWidth) / 2;
+  const startY = marginTop + titleSpace;
   
   // Draw Grid
   doc.setLineWidth(0.001);
@@ -437,7 +465,7 @@ function drawPuzzlePage(
       const y = startY + i * scaledCellSize;
       
       // Safety check for bounds
-      if (x >= margin - 0.1 && x + scaledCellSize <= pageWidth - margin + 0.1) {
+      if (x >= marginLeft - 0.1 && x + scaledCellSize <= pageWidth - marginRight + 0.1) {
         doc.rect(x, y, scaledCellSize, scaledCellSize);
       
       const letter = grid[i][j];
@@ -454,13 +482,13 @@ function drawPuzzlePage(
   const words = puzzle.placedWords.map(w => w.word);
   // Increased gap between grid and word list
   const wordListStartY = startY + scaledGridHeight + 0.4;
-  const maxWordListY = pageHeight - margin - footerSpace - 0.1;
+  const maxWordListY = pageHeight - marginBottom - footerSpace - 0.1;
   const remainingSpace = maxWordListY - wordListStartY;
   
   // Increased font sizes for better readability
   doc.setFontSize(12);
   doc.setFont(getFont('helvetica'), 'bold');
-  doc.text('Word List:', margin, wordListStartY);
+  doc.text('Word List:', marginLeft, wordListStartY);
   
   doc.setFont(getFont('helvetica'), 'normal');
   let wordListFontSize = 11;
@@ -484,10 +512,10 @@ function drawPuzzlePage(
   }
   
   doc.setFontSize(wordListFontSize);
-  const columnWidth = (pageWidth - 2 * margin) / numColumns;
+  const columnWidth = (pageWidth - marginLeft - marginRight) / numColumns;
   
   for (let col = 0; col < numColumns; col++) {
-    const xPos = margin + col * columnWidth;
+    const xPos = marginLeft + col * columnWidth;
     let currentY = wordListStartY + 0.2;
     
     for (let i = 0; i < wordsPerColumn; i++) {
@@ -502,7 +530,7 @@ function drawPuzzlePage(
   // Footer (fontSize only affects grid letters)
   doc.setFontSize(8);
   doc.setFont(getFont('helvetica'), 'normal');
-  const footerY = pageHeight - margin + 0.1;
+  const footerY = pageHeight - marginBottom + 0.1;
   doc.text(`Page ${pageNum}`, pageWidth / 2, footerY, { align: 'center' });
   
   // Copyright text on all pages (if provided)
@@ -523,7 +551,10 @@ function drawSolutionsPage(
   bookTitle: string,
   pageWidth: number,
   pageHeight: number,
-  margin: number,
+  marginLeft: number,
+  marginRight: number,
+  marginTop: number,
+  marginBottom: number,
   fontName?: string,
   fontSize: number = 10, // Font size in points for grid letters
   copyrightText?: string
@@ -536,7 +567,7 @@ function drawSolutionsPage(
   };
   
   // Calculate usable dimensions
-  const usableWidth = pageWidth - margin * 2;
+  const usableWidth = pageWidth - marginLeft - marginRight;
   const contentCenterX = pageWidth / 2;
   
   // Calculate page area for dynamic sizing
@@ -546,14 +577,14 @@ function drawSolutionsPage(
   doc.setFontSize(18);
   doc.setFont(getFont('helvetica'), 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('Solutions', contentCenterX, margin + 0.3, { align: 'center' });
+  doc.text('Solutions', contentCenterX, marginTop + 0.3, { align: 'center' });
   
   const titleSpace = 0.5;
   const footerSpace = 0.4;
   // Dynamic label space - more space for potential multi-line labels on small pages
   const labelSpace = Math.max(0.4, usableWidth * 0.08); // At least 0.4" or 8% of usable width
   const availableWidth = usableWidth;
-  const availableHeight = pageHeight - margin * 2 - titleSpace - footerSpace - labelSpace;
+  const availableHeight = pageHeight - marginTop - marginBottom - titleSpace - footerSpace - labelSpace;
   
   const gridSize = puzzles[0]?.grid.length || 15;
   
@@ -595,7 +626,7 @@ function drawSolutionsPage(
   const actualGridHeight = Math.min(gridHeight, availableHeight);
   const actualCellSize = actualGridWidth / gridSize;
   
-  const startY = margin + titleSpace + labelSpace;
+  const startY = marginTop + titleSpace + labelSpace;
   
   // Calculate consistent font size for ALL labels (same size for all puzzles)
   // This ensures even and odd numbered puzzles have the same font size
@@ -612,13 +643,13 @@ function drawSolutionsPage(
     
     if (isLeft) {
         // Left grid: center within left half of usable area
-        gridX = margin + (singleGridWidth - actualGridWidth) / 2;
-        labelX = margin + singleGridWidth / 2;
+        gridX = marginLeft + (singleGridWidth - actualGridWidth) / 2;
+        labelX = marginLeft + singleGridWidth / 2;
     } else {
         // Right grid: center within right half of usable area
         // Ensure no overlap by using actual calculated positions
-        gridX = margin + singleGridWidth + gridSpacing + (singleGridWidth - actualGridWidth) / 2;
-        labelX = margin + singleGridWidth + gridSpacing + singleGridWidth / 2;
+        gridX = marginLeft + singleGridWidth + gridSpacing + (singleGridWidth - actualGridWidth) / 2;
+        labelX = marginLeft + singleGridWidth + gridSpacing + singleGridWidth / 2;
     }
     
     // Center grid vertically in available space
@@ -765,5 +796,5 @@ function drawSolutionsPage(
   // Footer - centered (fontSize only affects grid letters)
   doc.setFontSize(9);
   doc.setFont(getFont('helvetica'), 'normal');
-  doc.text(`Page ${doc.internal.pages.length - 1}`, contentCenterX, pageHeight - margin + 0.15, { align: 'center' });
+  doc.text(`Page ${doc.internal.pages.length - 1}`, contentCenterX, pageHeight - marginBottom + 0.15, { align: 'center' });
 }

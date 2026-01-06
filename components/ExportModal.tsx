@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Download, Eye, Type, FileText, Copy, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PDFDownloadButton, { PDFPageItem } from './PDFDownloadButton';
@@ -39,6 +39,7 @@ interface ExportModalProps {
   onCopyToClipboard?: (text: string, id: string) => void;
   copiedText?: string | null;
   onBookTitleChange?: (title: string) => void;
+  margins?: { left: number; right: number; top: number; bottom: number };
 }
 
 export default function ExportModal({
@@ -58,6 +59,7 @@ export default function ExportModal({
   onCopyToClipboard,
   copiedText = null,
   onBookTitleChange,
+  margins = { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5 },
 }: ExportModalProps) {
   // PDF Settings State
   const [selectedFont, setSelectedFont] = useState('helvetica');
@@ -71,6 +73,14 @@ export default function ExportModal({
   const [copyrightText, setCopyrightText] = useState('');
   const [isKdpSectionOpen, setIsKdpSectionOpen] = useState(true);
   const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(true);
+  const [localMargins, setLocalMargins] = useState(margins);
+
+  // Sync margins when modal opens or prop changes
+  useEffect(() => {
+    if (isOpen) {
+      setLocalMargins(margins);
+    }
+  }, [margins, isOpen]);
 
   if (!isOpen) return null;
 
@@ -423,6 +433,55 @@ export default function ExportModal({
                     )}
                   </div>
                 )}
+
+                {/* Page Margins */}
+                <div className="space-y-3 pt-2 border-t border-slate-700">
+                  <label className="block text-xs font-medium text-slate-400 mb-2">
+                    Page Margins (inches)
+                  </label>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Inside Margin (Left) */}
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">
+                        Inside Margin (Left)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.1"
+                        value={localMargins.left}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(4, parseFloat(e.target.value) || 0));
+                          setLocalMargins({ ...localMargins, left: val });
+                        }}
+                        className="w-full px-2 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-0.5">Min: 0" | Max: 4"</p>
+                    </div>
+
+                    {/* Outside Margin (Right) */}
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">
+                        Outside Margin (Right)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="4"
+                        step="0.1"
+                        value={localMargins.right}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(4, parseFloat(e.target.value) || 0));
+                          setLocalMargins({ ...localMargins, right: val });
+                        }}
+                        className="w-full px-2 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-slate-500 mt-0.5">Min: 0" | Max: 4"</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -440,6 +499,7 @@ export default function ExportModal({
                 fontSize={fontSize}
                 headingSize={headingSize}
                 pageFormat={pageSize}
+                margins={localMargins}
               />
               <PDFDownloadButton
                 puzzles={puzzles}
@@ -451,6 +511,7 @@ export default function ExportModal({
                 fontSize={fontSize}
                 headingSize={headingSize}
                 pageFormat={pageSize}
+                margins={localMargins}
               />
             </div>
           )}

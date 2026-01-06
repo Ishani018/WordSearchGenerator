@@ -217,8 +217,11 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
       </div>
       
       {/* Exportable Container */}
-      <div id="puzzle-preview-container" className="flex-1 flex gap-4 overflow-hidden min-h-0 bg-white p-4 rounded-lg">
-        <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
+      <div 
+        id="puzzle-preview-container" 
+        className="flex-1 flex gap-4 overflow-hidden min-h-0 bg-white rounded-lg p-4"
+      >
+        <div className="flex-1 flex gap-4 overflow-hidden min-h-0 p-4">
         {/* Grid */}
           <div 
             ref={gridRef}
@@ -316,8 +319,8 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                 <span className="font-medium">{word}</span>
               </motion.div>
             ))}
+            </div>
           </div>
-        </div>
         </div>
       </div>
 

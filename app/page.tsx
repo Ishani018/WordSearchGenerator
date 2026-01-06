@@ -108,6 +108,9 @@ export default function Home() {
   const [isContentSectionOpen, setIsContentSectionOpen] = useState(true);
   const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(false);
   const [isBookConfigSectionOpen, setIsBookConfigSectionOpen] = useState(false);
+  
+  // Page Margin Settings (in inches, converted to percentage for display)
+  const [margins, setMargins] = useState({ left: 0.5, right: 0.5, top: 0.5, bottom: 0.5 });
 
   // Authentication handlers
   const handleLogin = () => {
@@ -1024,9 +1027,8 @@ export default function Home() {
             <div className="flex gap-2">
               <Button
                 onClick={() => setShowExportModal(true)}
-                variant="outline"
                 size="sm"
-                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+                className="bg-red-600 hover:bg-red-700 text-white border-red-600"
                 title="Export / Download"
               >
                 <Download className="h-4 w-4 mr-2" />
