@@ -183,10 +183,12 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     : `${title.replace(/\s+/g, '_')}_Puzzle`;
   
   return (
-    <div className="flex flex-col h-full bg-slate-900 rounded-lg p-6 overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-900/80 backdrop-blur-sm rounded-xl p-6 overflow-hidden shadow-xl border border-slate-700/50">
       {/* Title and Controls */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-white">{title}</h2>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-2xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
+          {title}
+        </h2>
         <div className="flex items-center gap-2">
           {/* Show Solution Toggle */}
           <button
@@ -195,10 +197,10 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
               setSelectedCells(new Set());
               setHoveredWord(null);
             }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 shadow-lg ${
               showSolution
-                ? 'bg-green-600 text-white'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-green-500/30'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 border border-slate-700/50'
             }`}
           >
             {showSolution ? (
@@ -219,7 +221,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
       {/* Exportable Container */}
       <div 
         id="puzzle-preview-container" 
-        className="flex-1 flex gap-4 overflow-hidden min-h-0 bg-white rounded-lg p-4"
+        className="flex-1 flex gap-4 overflow-hidden min-h-0 bg-white rounded-xl p-4 shadow-inner border border-slate-200/50"
       >
         <div className="flex-1 flex gap-4 overflow-hidden min-h-0 p-4">
         {/* Grid */}
@@ -291,10 +293,10 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         </div>
         
         {/* Word List */}
-          <div className="w-56 bg-slate-800 rounded-lg p-4 overflow-y-auto">
-            <h3 className="text-sm font-semibold text-white mb-3">Word List</h3>
+          <div className="w-56 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 overflow-y-auto shadow-lg border border-slate-700/50">
+            <h3 className="text-sm font-bold text-white mb-3 drop-shadow-sm">Word List</h3>
             {!showSolution && (
-              <p className="text-xs text-slate-400 mb-2">Click and drag on the grid to find words!</p>
+              <p className="text-xs text-slate-400 mb-3 italic">Click and drag on the grid to find words!</p>
             )}
             <div className="space-y-2.5">
             {placedWords.map(({ word }, index) => (
@@ -306,17 +308,17 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                   onMouseEnter={() => !showSolution && setHoveredWord(word)}
                   onMouseLeave={() => !showSolution && setHoveredWord(null)}
                 className={`
-                    px-2.5 py-1.5 rounded-md cursor-pointer text-sm
+                    px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold
                   transition-all duration-200
                     ${showSolution
-                      ? 'bg-green-600 text-white'
+                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30'
                       : hoveredWord === word
-                    ? 'bg-blue-500 text-white shadow-lg scale-105'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl shadow-blue-500/40 scale-105'
+                    : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600/80 hover:scale-102 border border-slate-600/50'
                   }
                 `}
               >
-                <span className="font-medium">{word}</span>
+                <span>{word}</span>
               </motion.div>
             ))}
             </div>
