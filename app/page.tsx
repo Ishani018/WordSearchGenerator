@@ -5,9 +5,9 @@ import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upl
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
-import PDFDownloadButton, { PDFPageItem } from '@/components/PDFDownloadButton';
-import PDFPreviewModal from '@/components/PDFPreviewModal';
+import { PDFPageItem } from '@/components/PDFDownloadButton';
 import { Button } from '@/components/ui/button';
+import ExportModal from '@/components/ExportModal';
 import { AVAILABLE_FONTS } from '@/lib/fonts';
 import { validateWords } from '@/lib/word-validator';
 import LoginForm from '@/components/LoginForm';
@@ -101,8 +101,13 @@ export default function Home() {
   const [enableWordValidation, setEnableWordValidation] = useState(true); // Enable dictionary validation
   const [csvWordsPerPuzzle, setCsvWordsPerPuzzle] = useState(15); // Words per puzzle for CSV import
   const [selectedPuzzleIndex, setSelectedPuzzleIndex] = useState<number | null>(null); // Selected puzzle index for preview
-  const [isPdfOptionsOpen, setIsPdfOptionsOpen] = useState(true); // PDF Options collapsed state
   const [addBlankPagesBetweenChapters, setAddBlankPagesBetweenChapters] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  
+  // Collapsible sections state
+  const [isContentSectionOpen, setIsContentSectionOpen] = useState(true);
+  const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(false);
+  const [isBookConfigSectionOpen, setIsBookConfigSectionOpen] = useState(false);
 
   // Authentication handlers
   const handleLogin = () => {
@@ -733,6 +738,9 @@ export default function Home() {
         chapters: bookStructure ? [...bookStructure.chapters, ...chapters] : chapters
       };
       setBookStructure(newStructure);
+      
+      // Auto-expand Content section to show imported chapters
+      setIsContentSectionOpen(true);
 
       // Build success message
       const removedBySize = words.length - wordsFilteredBySize.length;
@@ -1012,8 +1020,18 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Right: Help and Logout Buttons */}
+            {/* Right: Export, Help and Logout Buttons */}
             <div className="flex gap-2">
+              <Button
+                onClick={() => setShowExportModal(true)}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+                title="Export / Download"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
               <Button
                 onClick={() => setShowHelpModal(true)}
                 variant="outline"
@@ -1039,7 +1057,7 @@ export default function Home() {
 
       {/* Main Layout */}
       <div className="container mx-auto px-4 py-4">
-        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-100px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-100px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-4 overflow-y-auto pr-2">
             {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
@@ -1110,7 +1128,7 @@ export default function Home() {
 
             {/* Single CSV Import (Book Mode) */}
             {mode === 'book' && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <div className="bg-slate-900 rounded-lg p-4">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Import CSV
                 </label>
@@ -1162,225 +1180,319 @@ export default function Home() {
               </div>
             )}
 
-            {/* Grid Size Selector */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <label className="block text-sm font-medium text-slate-300 mb-3">
-                Grid Size
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[8, 10, 12, 15, 18, 20, 22, 25, 30].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setGridSize(size)}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all text-sm ${
-                      gridSize === size
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                        : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
-                    }`}
-                  >
-                    {size}×{size}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2">
-                <input
-                  type="number"
-                  value={gridSize}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val >= 5 && val <= 50) {
-                      setGridSize(val);
-                    }
-                  }}
-                  min={5}
-                  max={50}
-                  placeholder="Custom size"
-                  className="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-slate-400 mt-1">Or enter custom size (5-50)</p>
-              </div>
-            </div>
 
-            {/* Chapter Management (Book Mode) */}
-            {mode === 'book' && bookStructure && !isGeneratingStructure && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-slate-300">Pages ({bookStructure.chapters.length})</label>
-                  <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-slate-600 hover:bg-slate-800">
-                    <FilePlus className="h-3 w-3 mr-1" /> Add Empty Page
-                  </Button>
-                </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {bookStructure.chapters.map((chapter, index) => {
-                    const hasPuzzle = bookPuzzles.length > 0 && bookPuzzles[index] !== undefined;
-                    const isSelected = selectedPuzzleIndex === index;
-                    return (
-                    <div key={index}>
-                      <div 
-                        className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''} ${isSelected && hasPuzzle ? 'ring-2 ring-blue-500 bg-slate-700' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700' : ''}`}
-                        onClick={() => {
-                          if (hasPuzzle && !chapter.isBlank) {
-                            setSelectedPuzzleIndex(index);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden flex-1">
-                          {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
-                          {editingChapterIndex === index ? (
-                            <input 
-                              autoFocus 
-                              value={editingTitle} 
-                              onChange={e => setEditingTitle(e.target.value)} 
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveChapter(index);
-                                if (e.key === 'Escape') {
-                                  setEditingChapterIndex(null);
-                                  setEditingTitle('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
-                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)${hasPuzzle ? ' ✓' : ''}`}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
-                          <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
-                          {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
-                          {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-1 text-slate-400 hover:text-green-400" title="Edit words"><Search className="h-3 w-3" /></button>}
-                          <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="h-3 w-3" /></button>
-                        </div>
-                      </div>
-                      {editingWordsIndex === index && !chapter.isBlank && (
-                        <div className="mt-2 p-3 bg-slate-800 rounded border border-slate-700">
-                          <label className="block text-xs font-medium text-slate-300 mb-2">
-                            Edit Words for "{chapter.title}" (comma or newline separated)
-                          </label>
-                          <textarea
-                            autoFocus
-                            value={editingWords}
-                            onChange={e => setEditingWords(e.target.value)}
-                            placeholder="WORD1, WORD2, WORD3..."
-                            rows={4}
-                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">Save Words</Button>
-                            <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600 hover:bg-slate-700">Cancel</Button>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-2">Words will be automatically converted to uppercase. Only letters allowed (4+ characters).</p>
-                        </div>
+            {/* Content Section - Open by default */}
+            <div className="bg-slate-900 rounded-lg">
+              <button
+                onClick={() => setIsContentSectionOpen(!isContentSectionOpen)}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
+              >
+                <h3 className="text-sm font-semibold text-slate-300">Content</h3>
+                {isContentSectionOpen ? (
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+              {isContentSectionOpen && (
+                <div className="p-4 space-y-4">
+                  {/* Main Theme */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-2">
+                      Main Theme
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value)}
+                        placeholder="e.g., Winter, Gardening..."
+                        className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        disabled={isGeneratingStructure}
+                      />
+                      {mode === 'book' ? (
+                        <Button
+                          onClick={handleGenerateStructure}
+                          disabled={isGeneratingStructure || !theme.trim()}
+                          className="bg-blue-600 hover:bg-blue-700"
+                          size="sm"
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleGenerateWords}
+                          disabled={isGeneratingWords || !theme.trim()}
+                          className="bg-blue-600 hover:bg-blue-700"
+                          size="sm"
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
                       )}
                     </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 space-y-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={addBlankPagesBetweenChapters}
-                      onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span>Add blank pages between chapters</span>
-                  </label>
-                  <Button
-                    onClick={handleGeneratePuzzles}
-                    disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    size="sm"
-                  >
-                    {isGeneratingPuzzle 
-                      ? `Generating... ${generationProgress.current}/${generationProgress.total}`
-                      : 'Generate Pages'
-                    }
-                  </Button>
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* Consolidated Controls Block */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4">Puzzle Settings</h3>
-              
-              <div className="space-y-4">
-                {/* Main Theme */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-2">
-                    Main Theme
-                  </label>
-                  <div className="flex gap-2">
+                  {/* Word Validation */}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={enableWordValidation}
+                        onChange={(e) => setEnableWordValidation(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span>Word Validation</span>
+                    </label>
+                    <p className="text-xs text-slate-400 mt-1 ml-6">
+                      Check words against dictionary API (removes spelling errors)
+                    </p>
+                  </div>
+
+                  {/* Chapter List (Book Mode) */}
+                  {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-xs font-medium text-slate-400">
+                          Chapters ({bookStructure.chapters.length})
+                        </label>
+                        <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-6 text-xs border-slate-600 hover:bg-slate-800 px-2">
+                          <FilePlus className="h-3 w-3 mr-1" /> Add Page
+                        </Button>
+                      </div>
+                      <div className="space-y-1 max-h-48 overflow-y-auto">
+                        {bookStructure.chapters.map((chapter, index) => {
+                          const hasPuzzle = bookPuzzles.length > 0 && bookPuzzles[index] !== undefined;
+                          const isSelected = selectedPuzzleIndex === index;
+                          return (
+                            <div key={index}>
+                              <div
+                                className={`bg-slate-800 rounded px-2 py-1.5 flex items-center justify-between group text-xs ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''} ${isSelected && hasPuzzle ? 'ring-1 ring-blue-500 bg-slate-700' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700' : ''}`}
+                                onClick={() => {
+                                  if (hasPuzzle && !chapter.isBlank) {
+                                    setSelectedPuzzleIndex(index);
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                                  {chapter.isBlank ? (
+                                    <File className="h-3 w-3 text-slate-500 shrink-0" />
+                                  ) : (
+                                    <span className="text-slate-500 w-3 shrink-0">{index + 1}.</span>
+                                  )}
+                                  {editingChapterIndex === index ? (
+                                    <input 
+                                      autoFocus 
+                                      value={editingTitle} 
+                                      onChange={e => setEditingTitle(e.target.value)} 
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') handleSaveChapter(index);
+                                        if (e.key === 'Escape') {
+                                          setEditingChapterIndex(null);
+                                          setEditingTitle('');
+                                        }
+                                      }}
+                                      className="flex-1 px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-100"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    <span className={`truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
+                                      {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length})${hasPuzzle ? ' ✓' : ''}`}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-0.5 text-slate-400 hover:text-blue-400 disabled:opacity-30" title="Move up"><ChevronUp className="h-3 w-3" /></button>
+                                  <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-0.5 text-slate-400 hover:text-blue-400 disabled:opacity-30" title="Move down"><ChevronDown className="h-3 w-3" /></button>
+                                  {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-0.5 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
+                                  {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-0.5 text-slate-400 hover:text-green-400" title="Edit words"><Search className="h-3 w-3" /></button>}
+                                  <button onClick={() => handleDeleteChapter(index)} className="p-0.5 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                                </div>
+                              </div>
+                              {editingWordsIndex === index && !chapter.isBlank && (
+                                <div className="mt-1.5 p-2 bg-slate-800 rounded border border-slate-700">
+                                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                                    Edit Words for "{chapter.title}"
+                                  </label>
+                                  <textarea
+                                    autoFocus
+                                    value={editingWords}
+                                    onChange={e => setEditingWords(e.target.value)}
+                                    placeholder="WORD1, WORD2, WORD3..."
+                                    rows={3}
+                                    className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                                  />
+                                  <div className="flex gap-2 mt-1.5">
+                                    <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-green-600 hover:bg-green-700 text-white text-xs py-1">Save</Button>
+                                    <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600 hover:bg-slate-700 text-xs py-1">Cancel</Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={addBlankPagesBetweenChapters}
+                            onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span>Add blank pages between chapters</span>
+                        </label>
+                        <Button
+                          onClick={handleGeneratePuzzles}
+                          disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
+                          className="w-full bg-green-600 hover:bg-green-700 text-sm"
+                          size="sm"
+                        >
+                          {isGeneratingPuzzle 
+                            ? `Generating... ${generationProgress.current}/${generationProgress.total}`
+                            : 'Generate Pages'
+                          }
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Single Mode Word Input */}
+                  {mode === 'single' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          Number of Words
+                        </label>
+                        <input
+                          type="number"
+                          value={singleWords}
+                          onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
+                          min={5}
+                          max={50}
+                          className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          Custom Words (Optional)
+                        </label>
+                        <textarea
+                          value={customWords}
+                          onChange={(e) => setCustomWords(e.target.value)}
+                          placeholder="snowflake, icicle, blizzard..."
+                          rows={3}
+                          className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                        />
+                      </div>
+                      {generatedWords.length > 0 && (
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">
+                            Generated Words (Editable)
+                          </label>
+                          <textarea
+                            value={generatedWords.join(', ')}
+                            onChange={(e) => {
+                              const words = e.target.value
+                                .split(/[,\n]/)
+                                .map(w => w.trim().toUpperCase())
+                                .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
+                              setGeneratedWords(words);
+                              if (words.length > 0) {
+                                const maxWordLength = gridSize - 2;
+                                const validWords = words.filter(w => w.length <= maxWordLength);
+                                if (validWords.length > 0) {
+                                  try {
+                                    const result = generatePuzzle(validWords.slice(0, singleWords), gridSize, difficulty);
+                                    setPuzzle(result);
+                                  } catch (error) {
+                                    console.error('Error generating puzzle:', error);
+                                  }
+                                }
+                              }
+                            }}
+                            placeholder="WORD1, WORD2, WORD3..."
+                            rows={4}
+                            className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Settings Section - Collapsed by default */}
+            <div className="bg-slate-900 rounded-lg">
+              <button
+                onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
+              >
+                <h3 className="text-sm font-semibold text-slate-300">Settings</h3>
+                {isSettingsSectionOpen ? (
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+              {isSettingsSectionOpen && (
+                <div className="p-4 space-y-4">
+                  {/* Grid Size - Slider */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-2">
+                      Grid Size: {gridSize}×{gridSize}
+                    </label>
                     <input
-                      type="text"
-                      value={theme}
-                      onChange={(e) => setTheme(e.target.value)}
-                      placeholder="e.g., Winter, Gardening..."
-                      className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      disabled={isGeneratingStructure}
+                      type="range"
+                      min="5"
+                      max="30"
+                      step="1"
+                      value={gridSize}
+                      onChange={(e) => setGridSize(parseInt(e.target.value))}
+                      className="w-full"
                     />
-                    {mode === 'book' ? (
-                      <Button
-                        onClick={handleGenerateStructure}
-                        disabled={isGeneratingStructure || !theme.trim()}
-                        className="bg-blue-600 hover:bg-blue-700"
-                        size="sm"
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={handleGenerateWords}
-                        disabled={isGeneratingWords || !theme.trim()}
-                        className="bg-blue-600 hover:bg-blue-700"
-                        size="sm"
-                      >
-                        <Search className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>5</span>
+                      <span>15</span>
+                      <span>30</span>
+                    </div>
+                  </div>
+
+                  {/* Difficulty */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1">
+                      Difficulty
+                    </label>
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+                      className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="easy">Easy</option>
+                      <option value="medium">Medium</option>
+                      <option value="hard">Hard</option>
+                    </select>
                   </div>
                 </div>
+              )}
+            </div>
 
-                {/* Word Validation - Directly under theme */}
-                <div>
-                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enableWordValidation}
-                      onChange={(e) => setEnableWordValidation(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span>Word Validation</span>
-                  </label>
-                  <p className="text-xs text-slate-400 mt-1 ml-6">
-                    Check words against dictionary API (removes spelling errors)
-          </p>
-        </div>
-
-                {/* Difficulty */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">
-                    Difficulty
-                  </label>
-                  <select
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                  </select>
-                </div>
-
-                {/* Words per Puzzle / Number of Words */}
-                {mode === 'book' ? (
-                  <>
+            {/* Book Config Section - Collapsed by default (Book Mode Only) */}
+            {mode === 'book' && (
+              <div className="bg-slate-900 rounded-lg">
+                <button
+                  onClick={() => setIsBookConfigSectionOpen(!isBookConfigSectionOpen)}
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
+                >
+                  <h3 className="text-sm font-semibold text-slate-300">Book Config</h3>
+                  {isBookConfigSectionOpen ? (
+                    <ChevronUp className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  )}
+                </button>
+                {isBookConfigSectionOpen && (
+                  <div className="p-4 space-y-4">
                     <div>
                       <label className="block text-xs font-medium text-slate-400 mb-1">
                         Words per Puzzle
@@ -1407,179 +1519,8 @@ export default function Home() {
                         className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                     </div>
-                  </>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1">
-                      Number of Words
-                    </label>
-                    <input
-                      type="number"
-                      value={singleWords}
-                      onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
-                      min={5}
-                      max={50}
-                      className="w-full px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Chapter Management (Book Mode) */}
-            {mode === 'book' && bookStructure && !isGeneratingStructure && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-slate-300">Pages ({bookStructure.chapters.length})</label>
-                  <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-slate-600 hover:bg-slate-800">
-                    <FilePlus className="h-3 w-3 mr-1" /> Add Empty Page
-                  </Button>
-                </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {bookStructure.chapters.map((chapter, index) => {
-                    const hasPuzzle = bookPuzzles.length > 0 && bookPuzzles[index] !== undefined;
-                    const isSelected = selectedPuzzleIndex === index;
-                    return (
-                    <div key={index}>
-                      <div 
-                        className={`bg-slate-800 rounded p-2 flex items-center justify-between group ${chapter.isBlank ? 'border border-dashed border-slate-600' : ''} ${isSelected && hasPuzzle ? 'ring-2 ring-blue-500 bg-slate-700' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700' : ''}`}
-                        onClick={() => {
-                          if (hasPuzzle && !chapter.isBlank) {
-                            setSelectedPuzzleIndex(index);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center gap-2 overflow-hidden flex-1">
-                          {chapter.isBlank ? <File className="h-4 w-4 text-slate-500 shrink-0" /> : <span className="text-xs text-slate-500 w-4">{index + 1}.</span>}
-                          {editingChapterIndex === index ? (
-                            <input 
-                              autoFocus 
-                              value={editingTitle} 
-                              onChange={e => setEditingTitle(e.target.value)} 
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSaveChapter(index);
-                                if (e.key === 'Escape') {
-                                  setEditingChapterIndex(null);
-                                  setEditingTitle('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <span className={`text-sm truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
-                              {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length} words)${hasPuzzle ? ' ✓' : ''}`}
-                            </span>
-                          )}
-                        </div>
-                        
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronUp className="h-3 w-3" /></button>
-                          <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1 text-slate-400 hover:text-blue-400 disabled:opacity-30"><ChevronDown className="h-3 w-3" /></button>
-                          {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1 text-slate-400 hover:text-blue-400" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
-                          {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-1 text-slate-400 hover:text-green-400" title="Edit words"><Search className="h-3 w-3" /></button>}
-                          <button onClick={() => handleDeleteChapter(index)} className="p-1 text-slate-400 hover:text-red-400" title="Delete"><Trash2 className="h-3 w-3" /></button>
-                        </div>
-                      </div>
-                      {editingWordsIndex === index && !chapter.isBlank && (
-                        <div className="mt-2 p-3 bg-slate-800 rounded border border-slate-700">
-                          <label className="block text-xs font-medium text-slate-300 mb-2">
-                            Edit Words for "{chapter.title}" (comma or newline separated)
-                          </label>
-                          <textarea
-                            autoFocus
-                            value={editingWords}
-                            onChange={e => setEditingWords(e.target.value)}
-                            placeholder="WORD1, WORD2, WORD3..."
-                            rows={4}
-                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-green-600 hover:bg-green-700 text-white">Save Words</Button>
-                            <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600 hover:bg-slate-700">Cancel</Button>
-                          </div>
-                          <p className="text-xs text-slate-400 mt-2">Words will be automatically converted to uppercase. Only letters allowed (4+ characters).</p>
-                        </div>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 space-y-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={addBlankPagesBetweenChapters}
-                      onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span>Add blank pages between chapters</span>
-                  </label>
-                  <Button
-                    onClick={handleGeneratePuzzles}
-                    disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    size="sm"
-                  >
-                    {isGeneratingPuzzle 
-                      ? `Generating... ${generationProgress.current}/${generationProgress.total}`
-                      : 'Generate Pages'
-                    }
-                  </Button>
-                </div>
-              </div>
-            )}
-
-
-            {/* Custom Words (Single Mode) */}
-            {mode === 'single' && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Custom Words (Optional)
-                </label>
-                <textarea
-                  value={customWords}
-                  onChange={(e) => setCustomWords(e.target.value)}
-                  placeholder="snowflake, icicle, blizzard..."
-                  rows={3}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-                <p className="text-xs text-slate-400 mt-2">Enter words separated by commas or newlines. Words will be converted to uppercase.</p>
-              </div>
-            )}
-
-            {/* Generated Words Editor (Single Mode) */}
-            {mode === 'single' && generatedWords.length > 0 && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Generated Words (Editable)
-                </label>
-                <textarea
-                  value={generatedWords.join(', ')}
-                  onChange={(e) => {
-                    const words = e.target.value
-                      .split(/[,\n]/)
-                      .map(w => w.trim().toUpperCase())
-                      .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
-                    setGeneratedWords(words);
-                    if (words.length > 0) {
-                      const maxWordLength = gridSize - 2;
-                      const validWords = words.filter(w => w.length <= maxWordLength);
-                      if (validWords.length > 0) {
-                        try {
-                          const result = generatePuzzle(validWords.slice(0, singleWords), gridSize, difficulty);
-                          setPuzzle(result);
-                        } catch (error) {
-                          console.error('Error generating puzzle:', error);
-                        }
-                      }
-                    }
-                  }}
-                  placeholder="WORD1, WORD2, WORD3..."
-                  rows={6}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-                <p className="text-xs text-slate-400 mt-2">Edit words here. Puzzle will auto-update when you make changes. Words must be 4+ letters, only A-Z.</p>
               </div>
             )}
 
@@ -1598,412 +1539,14 @@ export default function Home() {
               </Button>
             )}
 
-            {/* Progress indicator for puzzle generation */}
-            {isGeneratingPuzzle && mode === 'book' && generationProgress.total > 0 && (
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-300">
-                      Generating Puzzles...
-                    </span>
-                    <span className="text-xs text-slate-400 font-semibold">
-                      {Math.round((generationProgress.current / generationProgress.total) * 100)}%
-                    </span>
-        </div>
-                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="bg-green-600 h-3 rounded-full transition-all duration-200 ease-out"
-                      style={{ width: `${Math.min((generationProgress.current / generationProgress.total) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>
-                      {bookStructure?.chapters[generationProgress.current - 1]?.title || `Puzzle ${generationProgress.current}`}
-                    </span>
-                    <span>
-                      {generationProgress.current}/{generationProgress.total}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Progress indicator for puzzle generation - Moved to modal overlay */}
 
           </aside>
 
           {/* Right Side - Preview */}
           <main className="overflow-hidden flex flex-col">
-            {/* PDF Options - Always visible */}
-            <div className="bg-slate-900 rounded-lg border border-slate-800 mb-4">
-              <button
-                onClick={() => setIsPdfOptionsOpen(!isPdfOptionsOpen)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800 transition-colors rounded-t-lg"
-              >
-                <h3 className="text-sm font-semibold text-slate-300">PDF Options</h3>
-                {isPdfOptionsOpen ? (
-                  <ChevronUp className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                )}
-              </button>
-              {isPdfOptionsOpen && (
-                <div className="p-4 overflow-y-auto max-h-[40vh]">
-                
-                {/* Book Title and KDP Tools - Side by Side (Book Mode Only) */}
-                {mode === 'book' && (
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Book Title</label>
-                      <input
-                        type="text"
-                        value={bookStructure?.bookTitle || ''}
-                        onChange={(e) => {
-                          if (bookStructure) {
-                            setBookStructure({ ...bookStructure, bookTitle: e.target.value });
-                          } else {
-                            setBookStructure({ bookTitle: e.target.value, chapters: [] });
-                          }
-                        }}
-                        placeholder="Enter book title"
-                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    {bookStructure && bookStructure.chapters.length > 0 && (
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1">KDP Tools</label>
-                        <div className="space-y-1.5">
-                          <Button
-                            onClick={handleGenerateBookTitles}
-                            disabled={isGeneratingKdpContent}
-                            className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs py-1.5"
-                            size="sm"
-                          >
-                            {isGeneratingKdpContent && kdpContentType === 'titles' ? (
-                              'Generating...'
-                            ) : (
-                              <>
-                                <Type className="h-3 w-3 mr-1.5" />
-                                Generate Titles
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={handleGenerateKdpDescription}
-                            disabled={isGeneratingKdpContent}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs py-1.5"
-                            size="sm"
-                          >
-                            {isGeneratingKdpContent && kdpContentType === 'description' ? (
-                              'Generating...'
-                            ) : (
-                              <>
-                                <FileText className="h-3 w-3 mr-1.5" />
-                                Generate Description
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* KDP Results (Book Mode Only) */}
-                {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (kdpTitles || kdpDescription) && (
-                  <div className="mb-4 p-2.5 bg-slate-800 rounded border border-slate-700 space-y-2.5">
-                    {kdpTitles && kdpTitles.length > 0 && (
-                      <div className="p-2 bg-slate-700 rounded border border-slate-600">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-xs font-medium text-slate-300">Titles:</label>
-                          <button
-                            onClick={() => {
-                              const allTitles = kdpTitles.join('\n');
-                              handleCopyToClipboard(allTitles, 'titles');
-                            }}
-                            className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors"
-                            title="Copy all titles"
-                          >
-                            {copiedText === 'titles' ? (
-                              <Check className="h-3 w-3 text-green-400" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
-                        <div className="space-y-1 max-h-24 overflow-y-auto">
-                          {kdpTitles.map((title, index) => (
-                            <div key={index} className="flex items-start gap-1.5 p-1 bg-slate-600 rounded hover:bg-slate-500 transition-colors text-xs">
-                              <span className="text-slate-400 mt-0.5">{index + 1}.</span>
-                              <span className="flex-1 text-slate-200">{title}</span>
-                              <button
-                                onClick={() => {
-                                  handleCopyToClipboard(title, `title-${index}`);
-                                  if (bookStructure) {
-                                    setBookStructure({ ...bookStructure, bookTitle: title });
-                                  }
-                                }}
-                                className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
-                                title="Copy and use as book title"
-                              >
-                                {copiedText === `title-${index}` ? (
-                                  <Check className="h-2.5 w-2.5 text-green-400" />
-                                ) : (
-                                  <Copy className="h-2.5 w-2.5" />
-                                )}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {kdpDescription && (
-                      <div className="p-2 bg-slate-700 rounded border border-slate-600">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-xs font-medium text-slate-300">Description:</label>
-                          <button
-                            onClick={() => handleCopyToClipboard(kdpDescription, 'description')}
-                            className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors"
-                            title="Copy description"
-                          >
-                            {copiedText === 'description' ? (
-                              <Check className="h-3 w-3 text-green-400" />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </button>
-                        </div>
-                        <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-20 overflow-y-auto">{kdpDescription}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* PDF Settings - Compact Grid */}
-                <div className="mb-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Font */}
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Font</label>
-                      <select
-                        value={selectedFont}
-                        onChange={(e) => setSelectedFont(e.target.value)}
-                        className="w-full px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {AVAILABLE_FONTS.map((font) => {
-                          let fontFamily = 'inherit';
-                          if (font.type === 'standard') {
-                            fontFamily = font.id === 'helvetica' ? 'Helvetica, Arial, sans-serif' :
-                                         font.id === 'times' ? 'Times, "Times New Roman", serif' :
-                                         font.id === 'courier' ? 'Courier, "Courier New", monospace' : 'inherit';
-                          } else if (font.type === 'google') {
-                            const fontMap: { [key: string]: string } = {
-                              'roboto': 'Roboto, sans-serif',
-                              'roboto-bold': 'Roboto, sans-serif',
-                              'open-sans': '"Open Sans", sans-serif',
-                              'open-sans-bold': '"Open Sans", sans-serif',
-                              'lora': 'Lora, serif',
-                              'lora-bold': 'Lora, serif',
-                              'playfair-display': '"Playfair Display", serif',
-                              'playfair-display-bold': '"Playfair Display", serif',
-                              'playpen-sans': '"Playpen Sans", cursive',
-                              'playpen-sans-bold': '"Playpen Sans", cursive',
-                              'schoolbell': '"Schoolbell", cursive',
-                            };
-                            fontFamily = fontMap[font.id] || 'inherit';
-                          }
-                          return (
-                            <option key={font.id} value={font.id} style={{ fontFamily }}>
-                              {font.name}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                    
-                    {/* Page Size */}
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Page Size</label>
-                      <div className="flex gap-1.5">
-                        <select 
-                          className="flex-1 px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onChange={(e) => {
-                            if (e.target.value === 'custom') {
-                              setIsCustomSize(true);
-                            } else {
-                              setIsCustomSize(false);
-                              const size = PAGE_SIZES.find(s => s.name === e.target.value);
-                              if (size) setPageSize(size);
-                            }
-                          }}
-                          value={isCustomSize ? 'custom' : pageSize.name}
-                        >
-                          {PAGE_SIZES.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-                          <option value="custom">Custom...</option>
-                        </select>
-                        {isCustomSize && (
-                          <div className="flex gap-1 items-center">
-                            <input 
-                              type="number" 
-                              className="w-14 px-1 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs" 
-                              placeholder="W" 
-                              step="0.1"
-                              value={customPageSize.width}
-                              onChange={e => {
-                                const w = parseFloat(e.target.value);
-                                setCustomPageSize(p => ({ ...p, width: w }));
-                                setPageSize({ ...pageSize, width: w });
-                              }}
-                            />
-                            <span className="text-slate-500 text-xs">×</span>
-                            <input 
-                              type="number" 
-                              className="w-14 px-1 py-1 bg-slate-800 border border-slate-700 rounded text-slate-100 text-xs" 
-                              placeholder="H" 
-                              step="0.1"
-                              value={customPageSize.height}
-                              onChange={e => {
-                                const h = parseFloat(e.target.value);
-                                setCustomPageSize(p => ({ ...p, height: h }));
-                                setPageSize({ ...pageSize, height: h });
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Font Sizes - Side by Side */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Grid Size ({fontSize}pt)</label>
-                      <input
-                        type="range"
-                        min="4"
-                        max="20"
-                        step="1"
-                        value={fontSize}
-                        onChange={(e) => setFontSize(parseInt(e.target.value))}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-slate-500 mt-0.5">
-                        <span>4</span>
-                        <span>12</span>
-                        <span>20</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-1">Title Size ({headingSize}pt)</label>
-                      <input
-                        type="range"
-                        min="10"
-                        max="24"
-                        step="1"
-                        value={headingSize}
-                        onChange={(e) => setHeadingSize(parseInt(e.target.value))}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-slate-500 mt-0.5">
-                        <span>10</span>
-                        <span>16</span>
-                        <span>24</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Book Mode Options - Compact Grid */}
-                {mode === 'book' && (
-                  <div className="mb-4 space-y-2">
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeTitlePage}
-                          onChange={(e) => setIncludeTitlePage(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-xs text-slate-300">Title Page</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={includeBelongsToPage}
-                          onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-700 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-xs text-slate-300">Belongs To Page</span>
-                      </label>
-                    </div>
-                    {includeTitlePage && (
-                      <div>
-                        <label className="block text-xs text-slate-400 mb-1">Copyright</label>
-                        <input
-                          type="text"
-                          value={copyrightText}
-                          onChange={(e) => setCopyrightText(e.target.value)}
-                          placeholder="Your Name or Company"
-                          className="w-1/2 px-2 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-md text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Download Buttons */}
-                <div className="space-y-2">
-                  {mode === 'book' && bookPuzzles.length > 0 && (
-                    <>
-                      <PDFPreviewModal
-                        puzzles={bookPuzzles}
-                        title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-                        includeTitlePage={includeTitlePage}
-                        includeBelongsToPage={includeBelongsToPage}
-                        copyrightText={copyrightText}
-                        fontId={selectedFont}
-                        fontSize={fontSize}
-                        headingSize={headingSize}
-                        pageFormat={pageSize}
-                      />
-                      <PDFDownloadButton
-                        puzzles={bookPuzzles}
-                        title={bookStructure?.bookTitle || theme || 'Word Search Puzzle Book'}
-                        includeTitlePage={includeTitlePage}
-                        includeBelongsToPage={includeBelongsToPage}
-                        copyrightText={copyrightText}
-                        fontId={selectedFont}
-                        fontSize={fontSize}
-                        headingSize={headingSize}
-                        pageFormat={pageSize}
-                      />
-                    </>
-                  )}
-                  {mode === 'single' && puzzle && (
-                    <>
-                      <PDFPreviewModal
-                        puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                        title={`Word Search - ${theme || 'Puzzle'}`}
-                        fontId={selectedFont}
-                        fontSize={fontSize}
-                        headingSize={headingSize}
-                        pageFormat={pageSize}
-                      />
-                      <PDFDownloadButton
-                        puzzles={[{ ...puzzle, chapterTitle: theme || 'Puzzle' }]}
-                        title={`Word Search - ${theme || 'Puzzle'}`}
-                        fontId={selectedFont}
-                        fontSize={fontSize}
-                        headingSize={headingSize}
-                        pageFormat={pageSize}
-                      />
-                    </>
-                  )}
-                </div>
-                </div>
-              )}
-            </div>
-
             {/* Puzzle Preview */}
-            <div className={`flex-1 overflow-auto min-h-0 transition-all ${!isPdfOptionsOpen ? 'min-h-[calc(100vh-180px)]' : ''}`}>
+            <div className="flex-1 overflow-auto min-h-0">
               {displayPuzzle ? (
                 'isBlank' in displayPuzzle ? (
                   <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
@@ -2024,14 +1567,14 @@ export default function Home() {
                   />
                 )
               ) : mode === 'book' && bookStructure ? (
-                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800">
+                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg">
                   <div className="text-center">
                     <BookOpen className="h-16 w-16 mx-auto mb-4 text-slate-600" />
                     <p className="text-slate-400">Click "Generate Pages" to create puzzles for all chapters</p>
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg border border-slate-800 p-6">
+                <div className="h-full flex items-center justify-center bg-slate-900 rounded-lg p-6">
                   <div className="w-full max-w-2xl">
                     <InstructionsPanel mode={mode} />
                   </div>
@@ -2044,6 +1587,76 @@ export default function Home() {
 
       {/* Help Modal */}
       <HelpModal isOpen={showHelpModal} onClose={() => setShowHelpModal(false)} />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        mode={mode}
+        puzzles={mode === 'book' 
+          ? bookPuzzles 
+          : puzzle 
+            ? [{ ...puzzle, chapterTitle: theme || 'Puzzle' }]
+            : []}
+        bookTitle={bookStructure?.bookTitle}
+        theme={theme}
+        bookStructure={bookStructure}
+        kdpTitles={kdpTitles}
+        kdpDescription={kdpDescription}
+        isGeneratingKdpContent={isGeneratingKdpContent}
+        kdpContentType={kdpContentType}
+        onGenerateBookTitles={handleGenerateBookTitles}
+        onGenerateKdpDescription={handleGenerateKdpDescription}
+        onCopyToClipboard={handleCopyToClipboard}
+        copiedText={copiedText}
+        onBookTitleChange={(title) => {
+          if (bookStructure) {
+            setBookStructure({ ...bookStructure, bookTitle: title });
+          } else {
+            setBookStructure({ bookTitle: title, chapters: [] });
+          }
+        }}
+      />
+
+      {/* Progress Modal Overlay - Centered with blurred backdrop */}
+      {isGeneratingPuzzle && mode === 'book' && generationProgress.total > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 rounded-lg p-8 border border-slate-700 shadow-2xl min-w-[400px] max-w-[500px]">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-slate-200 mb-1">
+                  Generating Puzzles...
+                </h3>
+                <p className="text-sm text-slate-400">
+                  {bookStructure?.chapters[generationProgress.current - 1]?.title || `Puzzle ${generationProgress.current}`}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-300">
+                    Progress
+                  </span>
+                  <span className="text-sm text-slate-400 font-semibold">
+                    {Math.round((generationProgress.current / generationProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden">
+                  <div 
+                    className="bg-green-600 h-4 rounded-full transition-all duration-200 ease-out"
+                    style={{ width: `${Math.min((generationProgress.current / generationProgress.total) * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>
+                    {generationProgress.current} of {generationProgress.total} puzzles
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

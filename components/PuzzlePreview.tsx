@@ -183,7 +183,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     : `${title.replace(/\s+/g, '_')}_Puzzle`;
   
   return (
-    <div className="flex flex-col h-full bg-slate-900 rounded-lg p-6 border border-slate-800 overflow-hidden">
+    <div className="flex flex-col h-full bg-slate-900 rounded-lg p-6 overflow-hidden">
       {/* Title and Controls */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white">{title}</h2>
@@ -288,7 +288,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         </div>
         
         {/* Word List */}
-          <div className="w-56 bg-slate-800 rounded-lg p-4 border border-slate-700 overflow-y-auto">
+          <div className="w-56 bg-slate-800 rounded-lg p-4 overflow-y-auto">
             <h3 className="text-sm font-semibold text-white mb-3">Word List</h3>
             {!showSolution && (
               <p className="text-xs text-slate-400 mb-2">Click and drag on the grid to find words!</p>
