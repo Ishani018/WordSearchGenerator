@@ -1038,8 +1038,8 @@ export default function Home() {
       </header>
 
       {/* Main Layout */}
-      <div className="container mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 h-[calc(100vh-120px)]">
+      <div className="container mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-100px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-4 overflow-y-auto pr-2">
             {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
@@ -2003,7 +2003,7 @@ export default function Home() {
             </div>
 
             {/* Puzzle Preview */}
-            <div className={`flex-1 overflow-auto min-h-0 transition-all ${!isPdfOptionsOpen ? 'min-h-[calc(100vh-200px)]' : ''}`}>
+            <div className={`flex-1 overflow-auto min-h-0 transition-all ${!isPdfOptionsOpen ? 'min-h-[calc(100vh-180px)]' : ''}`}>
               {displayPuzzle ? (
                 'isBlank' in displayPuzzle ? (
                   <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
