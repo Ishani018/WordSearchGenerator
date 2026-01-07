@@ -65,6 +65,7 @@ export default function ExportModal({
   const [selectedFont, setSelectedFont] = useState('helvetica');
   const [fontSize, setFontSize] = useState(10);
   const [headingSize, setHeadingSize] = useState(16);
+  const [wordListFontSize, setWordListFontSize] = useState(11);
   const [pageSize, setPageSize] = useState(PAGE_SIZES[6]); // Default Letter
   const [customPageSize, setCustomPageSize] = useState({ width: 8.5, height: 11 });
   const [isCustomSize, setIsCustomSize] = useState(false);
@@ -392,6 +393,27 @@ export default function ExportModal({
                       <span>24</span>
                     </div>
                   </div>
+
+                  {/* Word List Font Size */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-3">
+                      Word List Size: <span className="text-blue-400 font-bold">{wordListFontSize}pt</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="6"
+                      max="18"
+                      step="1"
+                      value={wordListFontSize}
+                      onChange={(e) => setWordListFontSize(parseInt(e.target.value))}
+                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-2">
+                      <span>6</span>
+                      <span>11</span>
+                      <span>18</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Book Mode Options */}
@@ -496,6 +518,7 @@ export default function ExportModal({
                 fontId={selectedFont}
                 fontSize={fontSize}
                 headingSize={headingSize}
+                wordListFontSize={wordListFontSize}
                 pageFormat={pageSize}
                 margins={localMargins}
               />
@@ -508,6 +531,7 @@ export default function ExportModal({
                 fontId={selectedFont}
                 fontSize={fontSize}
                 headingSize={headingSize}
+                wordListFontSize={wordListFontSize}
                 pageFormat={pageSize}
                 margins={localMargins}
               />

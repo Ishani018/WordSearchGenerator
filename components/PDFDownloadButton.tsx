@@ -20,6 +20,7 @@ export interface PDFDownloadButtonProps {
   fontId?: string;
   fontSize?: number; // Font size in points for grid letters (e.g., 10 = 10pt)
   headingSize?: number; // Font size in points for puzzle titles (e.g., 16 = 16pt)
+  wordListFontSize?: number; // Font size in points for word list (e.g., 11 = 11pt)
   pageFormat: { width: number; height: number }; // New prop for page size
   margins?: { left: number; right: number; top: number; bottom: number }; // Custom margins in inches
 }
@@ -34,6 +35,7 @@ export async function generatePDFDoc({
   fontId,
   fontSize = 10, // Default 10pt
   headingSize = 16, // Default 16pt
+  wordListFontSize = 11, // Default 11pt
   pageFormat,
   margins
 }: PDFDownloadButtonProps): Promise<jsPDF> {
@@ -178,6 +180,7 @@ export async function generatePDFDoc({
       fontName, 
       fontSize,
       headingSize,
+      wordListFontSize,
       copyrightText
     );
     currentPage++;
@@ -347,6 +350,7 @@ function drawPuzzlePage(
   fontName?: string,
   fontSize: number = 10, // Font size in points for grid letters
   headingSize: number = 16, // Font size in points for puzzle titles
+  wordListFontSize: number = 11, // Font size in points for word list
   copyrightText?: string
 ) {
   const getFont = (defaultFont: string = 'helvetica') => {
@@ -491,7 +495,7 @@ function drawPuzzlePage(
   doc.text('Word List:', marginLeft, wordListStartY);
   
   doc.setFont(getFont('helvetica'), 'normal');
-  let wordListFontSize = 11;
+  let finalWordListFontSize = wordListFontSize; // Use the provided font size
   const lineSpacing = 0.25; // Increased from 0.18 for more spacing between words
   
   // Dynamic columns based on page width
@@ -507,11 +511,11 @@ function drawPuzzlePage(
     if (estimatedHeight > remainingSpace) {
         // Shrink font as fallback
         const ratio = remainingSpace / estimatedHeight;
-        wordListFontSize = Math.max(wordListFontSize * ratio, 8); // Increased minimum from 6 to 8
+        finalWordListFontSize = Math.max(finalWordListFontSize * ratio, 8); // Increased minimum from 6 to 8
     }
   }
   
-  doc.setFontSize(wordListFontSize);
+  doc.setFontSize(finalWordListFontSize);
   const columnWidth = (pageWidth - marginLeft - marginRight) / numColumns;
   
   for (let col = 0; col < numColumns; col++) {

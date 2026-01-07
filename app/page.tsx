@@ -871,21 +871,11 @@ export default function Home() {
         // Auto-expand Content section
         setIsContentSectionOpen(true);
 
-        // Build success message
-        let message = `✅ Successfully imported ${processedChapters.length} chapter(s) with ${totalWords} word(s)`;
-        message += `\n\n📌 Note: All words from each chapter will go into one puzzle.`;
+        // Build success message (shortened)
+        let message = `✅ Imported ${processedChapters.length} chapter(s) with ${totalWords} word(s)`;
         if (totalRemoved > 0) {
-          message += `\n\n⚠️ Removed ${totalRemoved} word(s) that didn't fit grid size or failed validation`;
+          message += `\n⚠️ ${totalRemoved} word(s) removed (didn't fit grid or failed validation)`;
         }
-        // Show word counts per chapter if any chapter has more than csvWordsPerPuzzle
-        const chaptersWithManyWords = processedChapters.filter(ch => ch.words.length > csvWordsPerPuzzle);
-        if (chaptersWithManyWords.length > 0) {
-          message += `\n\n📊 Chapters with more than ${csvWordsPerPuzzle} words:`;
-          chaptersWithManyWords.forEach(ch => {
-            message += `\n  • ${ch.title}: ${ch.words.length} words (all will be in one puzzle)`;
-          });
-        }
-        message += `\n\n📋 All Chapters: ${processedChapters.map(ch => ch.title).join(', ')}`;
 
         setPendingCSV(null);
         await showAlert({ message });
@@ -991,18 +981,11 @@ export default function Home() {
       // Build success message
       const removedBySize = words.length - wordsFilteredBySize.length;
       const removedByValidation = enableWordValidation ? wordsFilteredBySize.length - finalWords.length : 0;
-      let message = `✅ Successfully imported ${finalWords.length} word(s) into ${chapters.length} chapter(s)`;
+      let message = `✅ Imported ${finalWords.length} word(s) into ${chapters.length} chapter(s)`;
       
       if (removedBySize > 0 || removedByValidation > 0) {
-        message += `\n\n⚠️ Removed:`;
-        if (removedBySize > 0) {
-          message += `\n- ${removedBySize} word(s) too long/short for ${csvGridSize}x${csvGridSize} grid`;
-        }
-        if (removedByValidation > 0) {
-          const invalidList = invalidWords.slice(0, 5).join(', ');
-          const moreText = invalidWords.length > 5 ? ` and ${invalidWords.length - 5} more` : '';
-          message += `\n- ${removedByValidation} invalid/incomplete word(s): ${invalidList}${moreText}`;
-        }
+        const totalRemoved = removedBySize + removedByValidation;
+        message += `\n⚠️ ${totalRemoved} word(s) removed (didn't fit grid or failed validation)`;
       }
 
       setPendingCSV(null);

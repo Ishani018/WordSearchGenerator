@@ -18,6 +18,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<[number, number] | null>(null);
+  const [wordListFontSize, setWordListFontSize] = useState(14); // Font size in pixels for word list
   const gridRef = useRef<HTMLDivElement>(null);
   
   // Create a map of word positions for quick lookup
@@ -296,7 +297,20 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         
         {/* Word List */}
           <div className="w-56 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 overflow-y-auto shadow-lg border border-slate-700/50">
-            <h3 className="text-sm font-bold text-white mb-3 drop-shadow-sm">Word List</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-white drop-shadow-sm">Word List</h3>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-400">Size:</label>
+                <input
+                  type="number"
+                  min="8"
+                  max="24"
+                  value={wordListFontSize}
+                  onChange={(e) => setWordListFontSize(Math.max(8, Math.min(24, parseInt(e.target.value) || 14)))}
+                  className="w-12 px-1.5 py-0.5 text-xs bg-slate-700/80 border border-slate-600/50 rounded text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
+                />
+              </div>
+            </div>
             {!showSolution && (
               <p className="text-xs text-slate-400 mb-3 italic">Click and drag on the grid to find words!</p>
             )}
@@ -310,7 +324,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                   onMouseEnter={() => !showSolution && setHoveredWord(word)}
                   onMouseLeave={() => !showSolution && setHoveredWord(null)}
                 className={`
-                    px-3 py-2 rounded-lg cursor-pointer text-sm font-semibold
+                    px-3 py-2 rounded-lg cursor-pointer font-semibold
                   transition-all duration-200
                     ${showSolution
                       ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30'
@@ -319,6 +333,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                     : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600/80 hover:scale-102 border border-slate-600/50'
                   }
                 `}
+                style={{ fontSize: `${wordListFontSize}px` }}
               >
                 <span>{word}</span>
               </motion.div>
