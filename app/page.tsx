@@ -104,6 +104,10 @@ export default function Home() {
   const [addBlankPagesBetweenChapters, setAddBlankPagesBetweenChapters] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   
+  // CSV import state - store CSV content before processing
+  const [pendingCSV, setPendingCSV] = useState<{ content: string; fileName: string } | null>(null);
+  const [csvGridSize, setCsvGridSize] = useState(15); // Grid size for CSV import
+  
   // Collapsible sections state
   const [isContentSectionOpen, setIsContentSectionOpen] = useState(true);
   const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(false);
@@ -782,27 +786,45 @@ export default function Home() {
     return { words, hasClues };
   };
 
-  // Handle CSV file upload (single file, split into chapters)
-  const handleCSVImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle CSV file upload - just store the content, don't process yet
+  const handleCSVFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Check file extension
     if (!file.name.toLowerCase().endsWith('.csv')) {
       await showAlert({ message: 'Please upload a CSV file' });
+      event.target.value = '';
       return;
     }
 
     try {
       const text = await file.text();
-      const parseResult = parseCSV(text);
+      // Store CSV content for processing after grid size selection
+      setPendingCSV({ content: text, fileName: file.name });
+      // Reset grid size to default
+      setCsvGridSize(15);
+      event.target.value = '';
+    } catch (error) {
+      console.error('Error reading CSV file:', error);
+      await showAlert({ message: `❌ Failed to read CSV file: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      event.target.value = '';
+    }
+  }, [showAlert]);
+
+  // Process CSV import after grid size is selected
+  const processCSVImport = useCallback(async () => {
+    if (!pendingCSV) return;
+
+    try {
+      const parseResult = parseCSV(pendingCSV.content);
 
       // Check if CSV has chapters with titles
       if (parseResult.chapters && parseResult.chapters.length > 0) {
         console.log(`CSV Import: Detected ${parseResult.chapters.length} chapters with titles`);
         
         // Filter and validate words in each chapter
-        const maxWordLength = gridSize - 2;
+        const maxWordLength = csvGridSize - 2;
         const processedChapters: Array<{ title: string; words: string[] }> = [];
         let totalWords = 0;
         let totalRemoved = 0;
@@ -835,7 +857,7 @@ export default function Home() {
           await showAlert({ 
             message: '❌ No valid words found in any chapter. Please check your CSV file format and grid size settings.' 
           });
-          event.target.value = '';
+          setPendingCSV(null);
           return;
         }
 
@@ -865,7 +887,7 @@ export default function Home() {
         }
         message += `\n\n📋 All Chapters: ${processedChapters.map(ch => ch.title).join(', ')}`;
 
-        event.target.value = '';
+        setPendingCSV(null);
         await showAlert({ message });
         return;
       }
@@ -873,17 +895,18 @@ export default function Home() {
       // Fallback: Original behavior (no titles in CSV, split by csvWordsPerPuzzle)
       const { words, hasClues } = parseResult;
 
-      console.log(`CSV Import: Parsed ${words.length} words from file "${file.name}"`);
+      console.log(`CSV Import: Parsed ${words.length} words from file "${pendingCSV?.fileName}"`);
       console.log(`CSV Import: Sample words:`, words.slice(0, 5));
 
       if (words.length === 0) {
         await showAlert({ message: 'No valid words found in CSV file. Please ensure the file contains words (one per line or in Word, Clue format).' });
+        setPendingCSV(null);
         return;
       }
 
       // Filter words by grid size
-      const maxWordLength = gridSize - 2;
-      console.log(`CSV Import: Filtering words for ${gridSize}x${gridSize} grid (max length: ${maxWordLength})`);
+      const maxWordLength = csvGridSize - 2;
+      console.log(`CSV Import: Filtering words for ${csvGridSize}x${csvGridSize} grid (max length: ${maxWordLength})`);
       const wordsFilteredBySize = words.filter(w => {
         const word = w.toUpperCase().trim();
         const isValid = word.length >= 3 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
@@ -913,13 +936,13 @@ export default function Home() {
         const moreText = rejectedWords.length > 10 ? `\n  ... and ${rejectedWords.length - 10} more` : '';
         
         await showAlert({
-          message: `❌ No words fit the current grid size (${gridSize}x${gridSize}).\n\n` +
+          message: `❌ No words fit the selected grid size (${csvGridSize}x${csvGridSize}).\n\n` +
           `All ${words.length} words were rejected:\n${rejectedText}${moreText}\n\n` +
           `Try:\n` +
-          `- Increasing grid size (currently ${gridSize}x${gridSize})\n` +
+          `- Increasing grid size (currently ${csvGridSize}x${csvGridSize})\n` +
           `- Checking your CSV file format`
         });
-        event.target.value = '';
+        setPendingCSV(null);
         return;
       }
 
@@ -938,13 +961,13 @@ export default function Home() {
 
       if (finalWords.length === 0) {
         await showAlert({ message: '❌ No valid words found after validation. Please check your CSV file.' });
-        event.target.value = '';
+        setPendingCSV(null);
         return;
       }
 
       // Split words into chapters based on csvWordsPerPuzzle
       const chapters: Array<{ title: string; words: string[] }> = [];
-      const baseTitle = file.name.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Chapter';
+      const baseTitle = pendingCSV?.fileName.replace(/\.csv$/i, '').replace(/[_-]/g, ' ').trim() || 'Chapter';
       
       for (let i = 0; i < finalWords.length; i += csvWordsPerPuzzle) {
         const chapterWords = finalWords.slice(i, i + csvWordsPerPuzzle);
@@ -973,7 +996,7 @@ export default function Home() {
       if (removedBySize > 0 || removedByValidation > 0) {
         message += `\n\n⚠️ Removed:`;
         if (removedBySize > 0) {
-          message += `\n- ${removedBySize} word(s) too long/short for ${gridSize}x${gridSize} grid`;
+          message += `\n- ${removedBySize} word(s) too long/short for ${csvGridSize}x${csvGridSize} grid`;
         }
         if (removedByValidation > 0) {
           const invalidList = invalidWords.slice(0, 5).join(', ');
@@ -982,15 +1005,14 @@ export default function Home() {
         }
       }
 
-      // Clear file input
-      event.target.value = '';
-
+      setPendingCSV(null);
       await showAlert({ message });
     } catch (error) {
       console.error('Error importing CSV:', error);
       await showAlert({ message: `❌ Failed to import CSV file: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      setPendingCSV(null);
     }
-  }, [bookStructure, gridSize, enableWordValidation, csvWordsPerPuzzle, showAlert, showToast]);
+  }, [pendingCSV, bookStructure, csvGridSize, enableWordValidation, csvWordsPerPuzzle, showAlert, showToast]);
 
 
   // Generate puzzles for all chapters
@@ -1398,7 +1420,7 @@ export default function Home() {
                     <input
                       type="file"
                       accept=".csv"
-                      onChange={handleCSVImport}
+                      onChange={handleCSVFileSelect}
                       className="hidden"
                       id="csv-import-input"
                     />
@@ -1412,6 +1434,59 @@ export default function Home() {
                       Import CSV File
                     </Button>
                   </label>
+                  
+                  {/* Grid Size Selector - appears after CSV upload */}
+                  {pendingCSV && (
+                    <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <label className="block text-xs font-semibold text-blue-300 mb-3">
+                        Select Grid Size for Import
+                      </label>
+                      <div className="mb-3">
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          Grid Size: <span className="text-blue-400 font-bold">{csvGridSize}×{csvGridSize}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="5"
+                          max="30"
+                          step="1"
+                          value={csvGridSize}
+                          onChange={(e) => setCsvGridSize(parseInt(e.target.value))}
+                          className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                          <span>5</span>
+                          <span>15</span>
+                          <span>30</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">
+                          Max word length: {csvGridSize - 2} letters
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={processCSVImport}
+                          className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-semibold"
+                          size="sm"
+                        >
+                          Process Import
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => setPendingCSV(null)}
+                          variant="outline"
+                          className="border-slate-600/50 hover:bg-slate-700/80 hover:border-slate-500 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
+                          size="sm"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                      <p className="text-xs text-blue-200/80 mt-2">
+                        File: {pendingCSV.fileName}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
