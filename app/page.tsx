@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check, HelpCircle } from 'lucide-react';
+import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check, HelpCircle, Info } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
@@ -214,7 +214,7 @@ export default function Home() {
               .map((w: string) => w.toUpperCase().trim())
               .filter((w: string) => {
                 const upperWord = w;
-                return upperWord.length >= 4 && 
+                return upperWord.length >= 3 && 
                        upperWord.length <= maxWordLength && 
                        /^[A-Z]+$/.test(upperWord) &&
                        !allSeenWords.has(upperWord);
@@ -326,7 +326,7 @@ export default function Home() {
           .map((w: string) => w.toUpperCase().trim())
           .filter((w: string) => {
             const upperWord = w;
-            return upperWord.length >= 4 && 
+            return upperWord.length >= 3 && 
                    upperWord.length <= maxWordLength && 
                    /^[A-Z]+$/.test(upperWord);
           });
@@ -347,7 +347,7 @@ export default function Home() {
           .map((w: string) => w.toUpperCase().trim())
           .filter((w: string) => {
             const upperWord = w;
-            return upperWord.length >= 4 && 
+            return upperWord.length >= 3 && 
                    upperWord.length <= maxWordLength && 
                    /^[A-Z]+$/.test(upperWord);
           });
@@ -404,7 +404,7 @@ export default function Home() {
       const words = editingWords
         .split(/[,\n]/)
         .map(w => w.trim().toUpperCase())
-        .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
+        .filter(w => w.length >= 3 && /^[A-Z]+$/.test(w));
       
       updated.chapters[index].words = words;
       setBookStructure(updated);
@@ -600,16 +600,160 @@ export default function Home() {
   };
 
   // Parse CSV file content
-  const parseCSV = (csvText: string): { words: string[]; hasClues: boolean } => {
-    const lines = csvText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  // Helper function to check if a string looks like a title (not a word)
+  const looksLikeTitle = (text: string): boolean => {
+    if (!text) return false;
+    // Titles typically have spaces, punctuation, or are longer than typical words
+    return text.includes(' ') || text.length > 20 || /[^A-Za-z0-9\s]/.test(text);
+  };
+
+  // Helper function to check if a line is a title marker
+  const isTitleMarker = (line: string): boolean => {
+    const lower = line.toLowerCase().trim();
+    return lower.startsWith('#title:') || lower.startsWith('title:') || lower.startsWith('chapter:');
+  };
+
+  // Extract title from a title marker line
+  const extractTitleFromMarker = (line: string): string | null => {
+    const match = line.match(/^(?:#)?title:\s*(.+)$/i) || line.match(/^chapter:\s*(.+)$/i);
+    return match ? match[1].trim() : null;
+  };
+
+  const parseCSV = (csvText: string): { 
+    words: string[]; 
+    hasClues: boolean;
+    chapters?: Array<{ title: string; words: string[] }>;
+  } => {
+    const lines = csvText.split('\n').map(line => line.trim());
     if (lines.length === 0) return { words: [], hasClues: false };
 
     // Check if first line has headers (Word, Clue format)
     const firstLine = lines[0].toLowerCase();
     const hasClues = firstLine.includes('word') && firstLine.includes('clue');
     
+    // Try to detect if CSV has chapter titles
+    let hasTitles = false;
+    let chapters: Array<{ title: string; words: string[] }> = [];
+    
+    // Check for title markers or title-like first columns
+    for (const line of lines) {
+      if (!line) continue;
+      if (isTitleMarker(line)) {
+        hasTitles = true;
+        break;
+      }
+      const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+      if (columns.length > 1 && looksLikeTitle(columns[0])) {
+        hasTitles = true;
+        break;
+      }
+    }
+
+    // If titles detected, parse chapters
+    if (hasTitles) {
+      let currentTitle: string | null = null;
+      let currentWords: string[] = [];
+      const startIndex = hasClues ? 1 : 0;
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i];
+        if (!line) {
+          // Empty line - if we have a title and words, save the chapter
+          if (currentTitle && currentWords.length > 0) {
+            chapters.push({ title: currentTitle, words: currentWords });
+            currentTitle = null;
+            currentWords = [];
+          }
+          continue;
+        }
+
+        // Check if this is a title marker
+        if (isTitleMarker(line)) {
+          // Save previous chapter if exists
+          if (currentTitle && currentWords.length > 0) {
+            chapters.push({ title: currentTitle, words: currentWords });
+          }
+          // Extract new title
+          currentTitle = extractTitleFromMarker(line) || 'Untitled Chapter';
+          currentWords = [];
+          continue;
+        }
+
+        // Parse CSV line
+        const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+        
+        // Check if first column is a title
+        if (columns.length > 1 && looksLikeTitle(columns[0])) {
+          // Save previous chapter if exists
+          if (currentTitle && currentWords.length > 0) {
+            chapters.push({ title: currentTitle, words: currentWords });
+          }
+          // First column is title, rest are words
+          currentTitle = columns[0];
+          currentWords = [];
+          
+          // Extract words from remaining columns
+          for (let j = 1; j < columns.length; j++) {
+            const word = columns[j]?.toUpperCase().trim();
+            if (word && /^[A-Z]+$/.test(word) && word.length >= 3) {
+              currentWords.push(word);
+            }
+          }
+        } else {
+          // Regular word line
+          if (hasClues) {
+            // Word, Clue format - extract first column (word)
+            if (columns[0]) {
+              const word = columns[0].toUpperCase().trim();
+              if (word && /^[A-Z]+$/.test(word)) {
+                if (currentTitle) {
+                  currentWords.push(word);
+                } else {
+                  // No title yet, use default
+                  if (chapters.length === 0 || chapters[chapters.length - 1].words.length > 0) {
+                    chapters.push({ title: 'Chapter ' + (chapters.length + 1), words: [] });
+                  }
+                  chapters[chapters.length - 1].words.push(word);
+                }
+              }
+            }
+          } else {
+            // Simple word list
+            const word = columns[0]?.toUpperCase().trim();
+            if (word && /^[A-Z]+$/.test(word)) {
+              if (currentTitle) {
+                currentWords.push(word);
+              } else {
+                // No title yet, use default
+                if (chapters.length === 0 || chapters[chapters.length - 1].words.length > 0) {
+                  chapters.push({ title: 'Chapter ' + (chapters.length + 1), words: [] });
+                }
+                chapters[chapters.length - 1].words.push(word);
+              }
+            }
+          }
+        }
+      }
+
+      // Save last chapter if exists
+      if (currentTitle && currentWords.length > 0) {
+        chapters.push({ title: currentTitle, words: currentWords });
+      } else if (currentTitle && currentWords.length === 0 && chapters.length > 0) {
+        // Title with no words - merge with previous or create empty
+        chapters.push({ title: currentTitle, words: [] });
+      }
+
+      // Filter out empty chapters
+      chapters = chapters.filter(ch => ch.words.length > 0);
+
+      if (chapters.length > 0) {
+        return { words: [], hasClues, chapters };
+      }
+    }
+
+    // Fallback to original parsing (no titles detected)
     const words: string[] = [];
-    const startIndex = hasClues ? 1 : 0; // Skip header row if present
+    const startIndex = hasClues ? 1 : 0;
 
     for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i];
@@ -651,7 +795,83 @@ export default function Home() {
 
     try {
       const text = await file.text();
-      const { words, hasClues } = parseCSV(text);
+      const parseResult = parseCSV(text);
+
+      // Check if CSV has chapters with titles
+      if (parseResult.chapters && parseResult.chapters.length > 0) {
+        console.log(`CSV Import: Detected ${parseResult.chapters.length} chapters with titles`);
+        
+        // Filter and validate words in each chapter
+        const maxWordLength = gridSize - 2;
+        const processedChapters: Array<{ title: string; words: string[] }> = [];
+        let totalWords = 0;
+        let totalRemoved = 0;
+
+        for (const chapter of parseResult.chapters) {
+          // Filter words by grid size
+          const wordsFilteredBySize = chapter.words.filter(w => {
+            const word = w.toUpperCase().trim();
+            return word.length >= 3 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
+          });
+
+          // Validate words if enabled
+          let finalWords = wordsFilteredBySize;
+          if (enableWordValidation && wordsFilteredBySize.length > 0) {
+            const { valid } = await validateWords(wordsFilteredBySize, () => {});
+            finalWords = valid;
+          }
+
+          if (finalWords.length > 0) {
+            processedChapters.push({
+              title: chapter.title,
+              words: finalWords
+            });
+            totalWords += finalWords.length;
+            totalRemoved += chapter.words.length - finalWords.length;
+          }
+        }
+
+        if (processedChapters.length === 0) {
+          await showAlert({ 
+            message: '❌ No valid words found in any chapter. Please check your CSV file format and grid size settings.' 
+          });
+          event.target.value = '';
+          return;
+        }
+
+        // Initialize or update book structure
+        const newStructure: BookStructure = {
+          bookTitle: bookStructure?.bookTitle || 'Imported Puzzle Book',
+          chapters: bookStructure ? [...bookStructure.chapters, ...processedChapters] : processedChapters
+        };
+        setBookStructure(newStructure);
+        
+        // Auto-expand Content section
+        setIsContentSectionOpen(true);
+
+        // Build success message
+        let message = `✅ Successfully imported ${processedChapters.length} chapter(s) with ${totalWords} word(s)`;
+        message += `\n\n📌 Note: All words from each chapter will go into one puzzle.`;
+        if (totalRemoved > 0) {
+          message += `\n\n⚠️ Removed ${totalRemoved} word(s) that didn't fit grid size or failed validation`;
+        }
+        // Show word counts per chapter if any chapter has more than csvWordsPerPuzzle
+        const chaptersWithManyWords = processedChapters.filter(ch => ch.words.length > csvWordsPerPuzzle);
+        if (chaptersWithManyWords.length > 0) {
+          message += `\n\n📊 Chapters with more than ${csvWordsPerPuzzle} words:`;
+          chaptersWithManyWords.forEach(ch => {
+            message += `\n  • ${ch.title}: ${ch.words.length} words (all will be in one puzzle)`;
+          });
+        }
+        message += `\n\n📋 All Chapters: ${processedChapters.map(ch => ch.title).join(', ')}`;
+
+        event.target.value = '';
+        await showAlert({ message });
+        return;
+      }
+
+      // Fallback: Original behavior (no titles in CSV, split by csvWordsPerPuzzle)
+      const { words, hasClues } = parseResult;
 
       console.log(`CSV Import: Parsed ${words.length} words from file "${file.name}"`);
       console.log(`CSV Import: Sample words:`, words.slice(0, 5));
@@ -666,7 +886,7 @@ export default function Home() {
       console.log(`CSV Import: Filtering words for ${gridSize}x${gridSize} grid (max length: ${maxWordLength})`);
       const wordsFilteredBySize = words.filter(w => {
         const word = w.toUpperCase().trim();
-        const isValid = word.length >= 4 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
+        const isValid = word.length >= 3 && word.length <= maxWordLength && /^[A-Z]+$/.test(word);
         if (!isValid) {
           console.log(`CSV Import: Rejected "${word}" - length: ${word.length}, valid: ${/^[A-Z]+$/.test(word)}`);
         }
@@ -679,8 +899,8 @@ export default function Home() {
         const rejectedWords: Array<{ word: string; reason: string }> = [];
         for (const word of words) {
           const cleanWord = word.toUpperCase().trim();
-          if (cleanWord.length < 4) {
-            rejectedWords.push({ word: cleanWord, reason: `Too short (${cleanWord.length} letters, min: 4)` });
+          if (cleanWord.length < 3) {
+            rejectedWords.push({ word: cleanWord, reason: `Too short (${cleanWord.length} letters, min: 3)` });
           } else if (cleanWord.length > maxWordLength) {
             rejectedWords.push({ word: cleanWord, reason: `Too long (${cleanWord.length} letters, max: ${maxWordLength})` });
           } else if (!/^[A-Z]+$/.test(cleanWord)) {
@@ -862,7 +1082,7 @@ export default function Home() {
       const maxWordLength = gridSize - 2;
       const validWords = wordsForPuzzle.filter(w => {
         const word = w.toUpperCase().trim();
-        return word.length <= maxWordLength && word.length >= 4 && /^[A-Z]+$/.test(word);
+        return word.length <= maxWordLength && word.length >= 3 && /^[A-Z]+$/.test(word);
       });
       
       if (validWords.length === 0) {
@@ -1141,6 +1361,16 @@ export default function Home() {
                 <p className="text-xs text-slate-400 mb-3">
                   Upload a single CSV file with words. Words will be split into chapters based on "Words per Puzzle" setting.
                 </p>
+                <div className="mb-3 p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-xs text-blue-300 font-medium mb-1 flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5" />
+                    Tip: Include Chapter Titles in CSV
+                  </p>
+                  <p className="text-xs text-blue-200/80 leading-relaxed">
+                    If you include chapter titles in your CSV (using <code className="text-blue-300">#TITLE:</code> or title in first column), 
+                    <strong className="text-blue-100"> all words from each chapter will go into one puzzle</strong>, regardless of the "Words per Puzzle" setting.
+                  </p>
+                </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-2">
@@ -1298,7 +1528,17 @@ export default function Home() {
                                     />
                                   ) : (
                                     <span className={`truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
-                                      {chapter.isBlank ? chapter.title : `${chapter.title} (${chapter.words.length})${hasPuzzle ? ' ✓' : ''}`}
+                                      {chapter.isBlank ? chapter.title : (
+                                        <>
+                                          {chapter.title} ({chapter.words.length})
+                                          {chapter.words.length > csvWordsPerPuzzle && (
+                                            <span className="ml-1.5 px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded border border-blue-500/30" title={`All ${chapter.words.length} words will be in one puzzle`}>
+                                              All in one
+                                            </span>
+                                          )}
+                                          {hasPuzzle && ' ✓'}
+                                        </>
+                                      )}
                                     </span>
                                   )}
                                 </div>
@@ -1397,7 +1637,7 @@ export default function Home() {
                               const words = e.target.value
                                 .split(/[,\n]/)
                                 .map(w => w.trim().toUpperCase())
-                                .filter(w => w.length >= 4 && /^[A-Z]+$/.test(w));
+                                .filter(w => w.length >= 3 && /^[A-Z]+$/.test(w));
                               setGeneratedWords(words);
                               if (words.length > 0) {
                                 const maxWordLength = gridSize - 2;

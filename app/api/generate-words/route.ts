@@ -26,7 +26,7 @@ function parseWordsFromResponse(responseText: string, count: number, maxLength: 
       // Only keep alphabetic words of appropriate length
       if (
         cleanWord &&
-        cleanWord.length >= 4 &&
+        cleanWord.length >= 3 &&
         cleanWord.length <= maxLength &&
         /^[A-Z]+$/.test(cleanWord) &&
         !seen.has(cleanWord)
@@ -46,7 +46,7 @@ function parseWordsFromResponse(responseText: string, count: number, maxLength: 
       const cleanWord = word.trim().toUpperCase().replace(/[.,;:!?]+$/, '');
       if (
         cleanWord &&
-        cleanWord.length >= 4 &&
+        cleanWord.length >= 3 &&
         cleanWord.length <= maxLength &&
         /^[A-Z]+$/.test(cleanWord) &&
         !seen.has(cleanWord)
@@ -103,7 +103,7 @@ async function generateWordsFromGroq(
     apiKey: GROQ_API_KEY,
   });
 
-  // Ensure maxWordLength is reasonable (at least 4, at most 20)
+  // Ensure maxWordLength is reasonable (at least 3, at most 20)
   const safeMaxLength = Math.max(4, Math.min(maxWordLength, 20));
   
   const prompt = `Generate exactly ${count} words related to the theme "${theme}".
@@ -197,7 +197,7 @@ Generate ${needed} words now:`;
         const seenSet = new Set(allWords.map(w => w.toUpperCase()));
         for (const word of newWords) {
           const upperWord = word.toUpperCase();
-          if (!seenSet.has(upperWord) && word.length >= 4 && word.length <= safeMaxLength) {
+          if (!seenSet.has(upperWord) && word.length >= 3 && word.length <= safeMaxLength) {
             allWords.push(word);
             seenSet.add(upperWord);
             if (allWords.length >= count) break;

@@ -32,7 +32,7 @@ All puzzle generation happens client-side in the browser, ensuring privacy and f
 
 ### Advanced Features
 - 📝 **Word Editing**: Edit words before generating puzzles
-- 📥 **CSV Import**: Single CSV import that automatically splits words into chapters based on words-per-puzzle setting
+- 📥 **CSV Import**: Single CSV import with automatic chapter splitting or include chapter titles directly in your CSV file
 - ✅ **Word Validation**: Optional dictionary validation to filter invalid words
 - 🎲 **Smart Algorithm**: Improved word placement with intersection prioritization and anti-clustering
 - 📏 **Difficulty Levels**: Easy (horizontal/vertical), Medium (+ diagonals), Hard (+ reverse)
@@ -465,12 +465,58 @@ The puzzle generator (`lib/puzzle-generator.ts`) uses a sophisticated algorithm:
 
 ### CSV Import
 
+The CSV import supports multiple formats:
+
+#### Format 1: Simple Word List (Auto-Split)
 1. **Prepare CSV**: Create CSV with words (one per line or "Word, Clue" format)
 2. **Set Words per Puzzle**: Configure how many words should go into each chapter
 3. **Import**: Click "Import CSV File" button
-4. **Validation**: Optionally validate words (checkbox in CSV import section)
-5. **Auto-Split**: Words are automatically split into chapters based on "Words per Puzzle" setting
-6. **Review**: Check the Pages section below to see all generated chapters
+4. **Auto-Split**: Words are automatically split into chapters based on "Words per Puzzle" setting
+5. **Review**: Check the Pages section below to see all generated chapters
+
+#### Format 2: CSV with Chapter Titles
+You can include chapter titles directly in your CSV file. The system will automatically detect and use them.
+
+**Option A: Title in First Column**
+```csv
+"Chapter 1: Winter Words", SNOW, ICE, COLD, FROST
+"Chapter 2: Summer Fun", BEACH, SUN, WAVE, SAND
+```
+
+**Option B: Title Marker Lines**
+```csv
+#TITLE: Chapter 1: Winter Words
+SNOW
+ICE
+COLD
+FROST
+
+#TITLE: Chapter 2: Summer Fun
+BEACH
+SUN
+WAVE
+SAND
+```
+
+**Option C: Title on Separate Line**
+```csv
+Chapter 1: Winter Words
+SNOW
+ICE
+COLD
+FROST
+
+Chapter 2: Summer Fun
+BEACH
+SUN
+WAVE
+SAND
+```
+
+**Notes:**
+- Titles are automatically detected if they contain spaces, punctuation, or are longer than 20 characters
+- If titles are detected, the "Words per Puzzle" setting is ignored (each title defines a chapter)
+- Words are still filtered by grid size and validated if word validation is enabled
 
 ## ⚙️ Configuration
 
