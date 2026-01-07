@@ -106,8 +106,9 @@ export function getFontById(fontId: string): FontDefinition | undefined {
   return AVAILABLE_FONTS.find(font => font.id === fontId);
 }
 
-// Cache to prevent reloading fonts that are already loaded
-const fontCache = new Map<string, string>();
+// Cache to store base64 font data and font names (to avoid re-fetching fonts)
+// Structure: { fontName: string, base64: string, isBold: boolean }
+const fontDataCache = new Map<string, { fontName: string; base64: string; isBold: boolean }>();
 
 /**
  * Load a font for jsPDF document
@@ -118,10 +119,60 @@ const fontCache = new Map<string, string>();
  * @returns Promise that resolves with the font name to use, or undefined if standard font
  */
 export async function loadFontForPDF(doc: any, fontId: string): Promise<string | undefined> {
-  // Check cache first
+  // Check if font is already loaded in this document instance
+  const fontName = fontId.replace(/-/g, '');
+  const fontFileName = `${fontName}.ttf`;
+  
+  // Check if font data is cached
   const cacheKey = `${fontId}`;
-  if (fontCache.has(cacheKey)) {
-    return fontCache.get(cacheKey);
+  const cachedData = fontDataCache.get(cacheKey);
+  
+  if (cachedData) {
+    // Font data is cached, but we still need to add it to THIS document instance
+    // Standard fonts don't need VFS operations - they're built into jsPDF
+    if (!cachedData.base64) {
+      // Standard font - no need to add to VFS, just return the name
+      return cachedData.fontName;
+    }
+    
+    // Google font - add to this document instance
+    // Always add it - jsPDF will handle duplicates gracefully or we'll catch errors
+    try {
+      doc.addFileToVFS(fontFileName, cachedData.base64);
+      doc.addFont(fontFileName, cachedData.fontName, cachedData.isBold ? 'bold' : 'normal');
+      // Also add the other variant for compatibility
+      if (cachedData.isBold) {
+        try {
+          doc.addFont(fontFileName, cachedData.fontName, 'normal');
+        } catch (e) {
+          // Ignore if it fails
+        }
+      } else {
+        try {
+          doc.addFont(fontFileName, cachedData.fontName, 'bold');
+        } catch (e) {
+          // Ignore if it fails
+        }
+      }
+    } catch (e) {
+      // Font might already be in VFS, try to add it anyway
+      try {
+        doc.addFont(fontFileName, cachedData.fontName, cachedData.isBold ? 'bold' : 'normal');
+        if (cachedData.isBold) {
+          try {
+            doc.addFont(fontFileName, cachedData.fontName, 'normal');
+          } catch (e2) {}
+        } else {
+          try {
+            doc.addFont(fontFileName, cachedData.fontName, 'bold');
+          } catch (e2) {}
+        }
+      } catch (e2) {
+        // If all else fails, the font might already be loaded, continue anyway
+        console.log(`Font ${cachedData.fontName} may already be loaded in document`);
+      }
+    }
+    return cachedData.fontName;
   }
   try {
     const font = getFontById(fontId);
@@ -136,10 +187,14 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
       // Return the standard font name
       const standardFonts = ['helvetica', 'times', 'courier'];
       if (standardFonts.includes(font.id)) {
+        // Cache standard fonts too (no base64 needed, just the name)
+        fontDataCache.set(cacheKey, { fontName: font.id, base64: '', isBold: false });
         return font.id;
       }
       console.warn(`Standard font "${fontId}" not recognized, falling back to Helvetica`);
-      return 'helvetica';
+      const fallbackName = 'helvetica';
+      fontDataCache.set(cacheKey, { fontName: fallbackName, base64: '', isBold: false });
+      return fallbackName;
     }
     
     // Google fonts need to be fetched and loaded from local /fonts/ directory
@@ -166,10 +221,12 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
         
         // Add font to jsPDF's virtual file system
         const fontName = font.id.replace(/-/g, '');
+        const isBold = fontId.endsWith('-bold');
+        
         doc.addFileToVFS(`${fontName}.ttf`, base64);
         
         // Add font to the document
-        if (fontId.endsWith('-bold')) {
+        if (isBold) {
           // For bold variants, add as bold weight
           doc.addFont(`${fontName}.ttf`, fontName, 'bold');
         } else {
@@ -184,8 +241,10 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
           }
         }
         
+        // Cache the font data for future use
+        fontDataCache.set(cacheKey, { fontName, base64, isBold });
+        
         console.log(`Successfully loaded font: ${font.name} (${fontId}) as "${fontName}"`);
-        fontCache.set(cacheKey, fontName);
         return fontName;
       } catch (error) {
         // Silently fail for bold variants (they're optional and may not exist)
@@ -213,7 +272,8 @@ export async function loadFontForPDF(doc: any, fontId: string): Promise<string |
                 // Use bold style with regular font (jsPDF will simulate bold)
                 doc.addFont(`${fontName}.ttf`, fontName, 'bold');
                 console.log(`Using regular "${regularFont.name}" font for bold variant "${fontId}"`);
-                fontCache.set(cacheKey, fontName);
+                // Cache the font data (marked as bold even though it's regular font)
+                fontDataCache.set(cacheKey, { fontName, base64, isBold: true });
                 return fontName;
               }
             } catch (e) {
