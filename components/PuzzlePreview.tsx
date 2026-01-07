@@ -49,53 +49,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     return map;
   }, [placedWords]);
 
-  // Helper to get word direction and determine which borders to show for a word at a specific cell
-  const getWordBorders = useCallback((row: number, col: number, word: string): { top: boolean; right: boolean; bottom: boolean; left: boolean } => {
-    const wordData = placedWords.find(w => w.word === word);
-    if (!wordData) return { top: false, right: false, bottom: false, left: false };
-    
-    const positions = wordData.positions;
-    const index = positions.findIndex(([r, c]) => r === row && c === col);
-    if (index === -1) return { top: false, right: false, bottom: false, left: false };
-    
-    // Determine direction from first two positions
-    if (positions.length < 2) return { top: true, right: true, bottom: true, left: true };
-    
-    const [r1, c1] = positions[0];
-    const [r2, c2] = positions[1];
-    const dr = r2 - r1;
-    const dc = c2 - c1;
-    
-    // Calculate borders based on direction and position in word
-    const isFirst = index === 0;
-    const isLast = index === positions.length - 1;
-    
-    if (dr === 0) {
-      // Horizontal word
-      return {
-        top: true,
-        bottom: true,
-        left: isFirst,
-        right: isLast
-      };
-    } else if (dc === 0) {
-      // Vertical word
-      return {
-        left: true,
-        right: true,
-        top: isFirst,
-        bottom: isLast
-      };
-    } else {
-      // Diagonal word
-      return {
-        top: isFirst || (dr < 0),
-        bottom: isLast || (dr > 0),
-        left: isFirst || (dc < 0),
-        right: isLast || (dc > 0)
-      };
-    }
-  }, [placedWords]);
+
 
   // Create a set of all solution positions
   const allSolutionPositions = useMemo(() => {
@@ -298,26 +252,6 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                     const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
                     const cellKey = `${rowIndex},${colIndex}`;
                     
-                    // Get all words passing through this cell
-                    const wordsInCell = cellToWordsMap.get(cellKey) || [];
-                    
-                    // Calculate box-shadow borders for all words (when solution is shown)
-                    // This ensures all word borders are visible even when words overlap
-                    let borderShadows: string[] = [];
-                    if (showSolution && wordsInCell.length > 0) {
-                      wordsInCell.forEach((word) => {
-                        const borders = getWordBorders(rowIndex, colIndex, word);
-                        const borderWidth = '2px';
-                        const borderColor = 'rgb(0, 0, 0)'; // Black borders
-                        
-                        // Use inset box-shadow to create borders on all sides
-                        if (borders.top) borderShadows.push(`inset 0 ${borderWidth} 0 0 ${borderColor}`);
-                        if (borders.right) borderShadows.push(`inset 0 0 0 ${borderWidth} ${borderColor}`);
-                        if (borders.bottom) borderShadows.push(`inset ${borderWidth} 0 0 0 ${borderColor}`);
-                        if (borders.left) borderShadows.push(`inset 0 0 ${borderWidth} 0 ${borderColor}`);
-                      });
-                    }
-                    
                   return (
                     <motion.div
                       key={`${rowIndex}-${colIndex}`}
@@ -335,10 +269,9 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                         border border-slate-600
                         transition-all duration-200
                           cursor-pointer
-                        relative
                         ${isHighlighted 
                             ? showSolution
-                              ? 'bg-red-500 text-white shadow-lg z-10'
+                              ? 'bg-green-500 text-white border-green-400 shadow-lg z-10'
                               : isSelected
                                 ? 'bg-purple-500 text-white border-purple-400 shadow-lg scale-105 z-10'
                                 : 'bg-blue-500 text-white border-blue-400 shadow-lg scale-105 z-10'
@@ -350,7 +283,6 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                         height: `${cellSize}px`,
                           fontSize: `${Math.max(cellSize * 0.35, 9)}px`,
                           userSelect: 'none',
-                          boxShadow: borderShadows.length > 0 ? borderShadows.join(', ') : undefined,
                       }}
                     >
                       {cell}
