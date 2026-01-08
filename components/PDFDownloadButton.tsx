@@ -2,6 +2,7 @@
 
 import { jsPDF } from 'jspdf';
 import { PuzzleResult } from '@/lib/puzzle-generator';
+import { SudokuPuzzle } from '@/lib/sudoku-generator';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { loadFontForPDF, getFontById } from '@/lib/fonts';
@@ -9,6 +10,7 @@ import { loadFontForPDF, getFontById } from '@/lib/fonts';
 // Define a type that can be either a puzzle or a blank page
 export type PDFPageItem = 
   | (PuzzleResult & { chapterTitle?: string }) 
+  | (SudokuPuzzle & { chapterTitle?: string })
   | { isBlank: true; chapterTitle?: string };
 
 export interface PDFDownloadButtonProps {
@@ -164,43 +166,71 @@ export async function generatePDFDoc({
     // Store the page number for this puzzle (using its index in the filtered list)
     puzzlePageMap.set(currentPuzzleCount - 1, currentPage);
     
-    drawPuzzlePage(
-      doc, 
-      item, 
-      currentPuzzleCount, 
-      totalRealPuzzles, 
-      title, 
-      pageWidth, 
-      pageHeight, 
-      marginLeft,
-      marginRight,
-      marginTop,
-      marginBottom, 
-      currentPage, 
-      fontName, 
-      fontSize,
-      headingSize,
-      wordListFontSize,
-      copyrightText
-    );
+    // Check if it's a Sudoku puzzle
+    if (isSudokuPuzzle(item)) {
+      drawSudokuPage(
+        doc,
+        item,
+        currentPuzzleCount,
+        totalRealPuzzles,
+        title,
+        pageWidth,
+        pageHeight,
+        marginLeft,
+        marginRight,
+        marginTop,
+        marginBottom,
+        currentPage,
+        fontName,
+        headingSize,
+        copyrightText
+      );
+    } else {
+      // Word search puzzle
+      drawPuzzlePage(
+        doc, 
+        item as PuzzleResult & { chapterTitle?: string }, 
+        currentPuzzleCount, 
+        totalRealPuzzles, 
+        title, 
+        pageWidth, 
+        pageHeight, 
+        marginLeft,
+        marginRight,
+        marginTop,
+        marginBottom, 
+        currentPage, 
+        fontName, 
+        fontSize,
+        headingSize,
+        wordListFontSize,
+        copyrightText
+      );
+    }
     currentPage++;
   });
   
   // SECTION 2: Solutions section
-  // Filter only real puzzles
-  const solutionPuzzles = puzzles.filter((p): p is PuzzleResult & { chapterTitle?: string } => !('isBlank' in p));
+  // Separate Sudoku and Word Search puzzles
+  const wordSearchPuzzles = puzzles.filter((p): p is PuzzleResult & { chapterTitle?: string } => 
+    !('isBlank' in p) && !isSudokuPuzzle(p)
+  );
+  const sudokuPuzzles = puzzles.filter((p): p is SudokuPuzzle & { chapterTitle?: string } => 
+    !('isBlank' in p) && isSudokuPuzzle(p)
+  );
   
-  if (solutionPuzzles.length > 0) {
+  // Draw Word Search solutions
+  if (wordSearchPuzzles.length > 0) {
     const puzzlesPerPage = 2;
-    const totalSolutionPages = Math.ceil(solutionPuzzles.length / puzzlesPerPage);
+    const totalSolutionPages = Math.ceil(wordSearchPuzzles.length / puzzlesPerPage);
     
     for (let pageIndex = 0; pageIndex < totalSolutionPages; pageIndex++) {
       doc.addPage([pageWidth, pageHeight]);
       currentPage++;
       
       const startIndex = pageIndex * puzzlesPerPage;
-      const endIndex = Math.min(startIndex + puzzlesPerPage, solutionPuzzles.length);
-      const puzzlesOnPage = solutionPuzzles.slice(startIndex, endIndex);
+      const endIndex = Math.min(startIndex + puzzlesPerPage, wordSearchPuzzles.length);
+      const puzzlesOnPage = wordSearchPuzzles.slice(startIndex, endIndex);
     
       // Get the original page numbers for these puzzles
       const pageNumbersOnPage = puzzlesOnPage.map((_, i) => {
@@ -213,7 +243,7 @@ export async function generatePDFDoc({
         puzzlesOnPage, 
         pageNumbersOnPage, 
         startIndex, 
-        solutionPuzzles.length, 
+        wordSearchPuzzles.length, 
         title, 
         pageWidth, 
         pageHeight, 
@@ -223,6 +253,44 @@ export async function generatePDFDoc({
         marginBottom,
         fontName, 
         fontSize,
+        copyrightText
+      );
+    }
+  }
+  
+  // Draw Sudoku solutions
+  if (sudokuPuzzles.length > 0) {
+    const puzzlesPerPage = 2;
+    const totalSolutionPages = Math.ceil(sudokuPuzzles.length / puzzlesPerPage);
+    
+    for (let pageIndex = 0; pageIndex < totalSolutionPages; pageIndex++) {
+      doc.addPage([pageWidth, pageHeight]);
+      currentPage++;
+      
+      const startIndex = pageIndex * puzzlesPerPage;
+      const endIndex = Math.min(startIndex + puzzlesPerPage, sudokuPuzzles.length);
+      const puzzlesOnPage = sudokuPuzzles.slice(startIndex, endIndex);
+    
+      // Get the original page numbers for these puzzles
+      const pageNumbersOnPage = puzzlesOnPage.map((_, i) => {
+        const globalIndex = startIndex + i;
+        return puzzlePageMap.get(globalIndex) || 0;
+      });
+      
+      drawSudokuSolutionsPage(
+        doc, 
+        puzzlesOnPage, 
+        pageNumbersOnPage, 
+        startIndex, 
+        sudokuPuzzles.length, 
+        title, 
+        pageWidth, 
+        pageHeight, 
+        marginLeft,
+        marginRight,
+        marginTop,
+        marginBottom,
+        fontName,
         copyrightText
       );
     }
@@ -798,6 +866,269 @@ function drawSolutionsPage(
   });
   
   // Footer - centered (fontSize only affects grid letters)
+  doc.setFontSize(9);
+  doc.setFont(getFont('helvetica'), 'normal');
+  doc.text(`Page ${doc.internal.pages.length - 1}`, contentCenterX, pageHeight - marginBottom + 0.15, { align: 'center' });
+}
+
+// Helper function to check if a PDFPageItem is a Sudoku puzzle
+function isSudokuPuzzle(item: PDFPageItem): item is SudokuPuzzle & { chapterTitle?: string } {
+  return !('isBlank' in item) && 'solution' in item && Array.isArray((item as any).grid) && (item as any).grid.length === 9;
+}
+
+// Draw Sudoku puzzle page
+function drawSudokuPage(
+  doc: jsPDF,
+  puzzle: SudokuPuzzle & { chapterTitle?: string },
+  puzzleNumber: number,
+  totalPuzzles: number,
+  bookTitle: string,
+  pageWidth: number,
+  pageHeight: number,
+  marginLeft: number,
+  marginRight: number,
+  marginTop: number,
+  marginBottom: number,
+  pageNum: number,
+  fontName?: string,
+  headingSize: number = 16,
+  copyrightText?: string
+) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  
+  const grid = puzzle.grid;
+  const gridSize = 9; // Sudoku is always 9x9
+  
+  // Calculate usable width
+  const usableWidth = pageWidth - marginLeft - marginRight;
+  const contentCenterX = pageWidth / 2;
+  
+  // Puzzle title
+  doc.setFontSize(headingSize);
+  doc.setFont(getFont('helvetica'), 'bold');
+  doc.setTextColor(0, 0, 0);
+  const puzzleTitle = puzzle.chapterTitle 
+    ? `Puzzle #${puzzleNumber}: ${puzzle.chapterTitle}`
+    : `Puzzle #${puzzleNumber}`;
+  
+  const titleLines = doc.splitTextToSize(puzzleTitle, usableWidth * 0.9);
+  let titleY = marginTop + 0.3;
+  titleLines.forEach((line: string) => {
+    doc.text(line, contentCenterX, titleY, { align: 'center' });
+    titleY += 0.2;
+  });
+  
+  // Instructions
+  doc.setFontSize(9);
+  doc.setFont(getFont('helvetica'), 'normal');
+  const instructionText = 'Fill in the grid so that every row, column, and 3×3 box contains the digits 1-9.';
+  const instructionLines = doc.splitTextToSize(instructionText, usableWidth * 0.85);
+  let instructionY = titleY + 0.15;
+  instructionLines.forEach((line: string) => {
+    doc.text(line, contentCenterX, instructionY, { align: 'center' });
+    instructionY += 0.15;
+  });
+  
+  const titleSpace = instructionY - marginTop + 0.1;
+  const footerSpace = 0.3;
+  const availableHeight = pageHeight - marginTop - marginBottom - titleSpace - footerSpace;
+  const availableWidth = usableWidth;
+  
+  // Calculate cell size
+  const cellSizeByWidth = availableWidth / gridSize;
+  const cellSizeByHeight = availableHeight / gridSize;
+  const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight);
+  const minCellSize = 0.15; // Minimum readable size for Sudoku
+  const finalCellSize = Math.max(cellSize, minCellSize);
+  
+  const gridWidth = gridSize * finalCellSize;
+  const gridHeight = gridSize * finalCellSize;
+  const gridX = contentCenterX - gridWidth / 2;
+  const gridY = instructionY + 0.2;
+  
+  // Draw grid with thicker borders for 3x3 boxes
+  doc.setLineWidth(0.002);
+  doc.setDrawColor(0, 0, 0);
+  
+  // Draw all cell borders
+  for (let i = 0; i <= gridSize; i++) {
+    const y = gridY + i * finalCellSize;
+    const lineWidth = (i % 3 === 0) ? 0.005 : 0.002; // Thicker lines for box borders
+    doc.setLineWidth(lineWidth);
+    doc.line(gridX, y, gridX + gridWidth, y);
+  }
+  
+  for (let j = 0; j <= gridSize; j++) {
+    const x = gridX + j * finalCellSize;
+    const lineWidth = (j % 3 === 0) ? 0.005 : 0.002; // Thicker lines for box borders
+    doc.setLineWidth(lineWidth);
+    doc.line(x, gridY, x, gridY + gridHeight);
+  }
+  
+  // Draw numbers
+  doc.setFont(getFont('helvetica'), 'normal');
+  const cellSizeInPoints = finalCellSize * 72;
+  const fontSize = Math.min(cellSizeInPoints * 0.4, 14); // 40% of cell height, max 14pt
+  doc.setFontSize(fontSize);
+  doc.setTextColor(0, 0, 0);
+  
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const num = grid[i][j];
+      if (num !== 0) {
+        const cellX = gridX + j * finalCellSize;
+        const cellY = gridY + i * finalCellSize;
+        const text = num.toString();
+        const w = doc.getTextWidth(text);
+        // Center text in cell
+        doc.text(text, cellX + (finalCellSize - w) / 2, cellY + finalCellSize * 0.7);
+      }
+    }
+  }
+  
+  // Footer
+  doc.setFontSize(9);
+  doc.setFont(getFont('helvetica'), 'normal');
+  doc.text(`Page ${pageNum}`, contentCenterX, pageHeight - marginBottom + 0.15, { align: 'center' });
+  
+  // Copyright
+  if (copyrightText) {
+    doc.setFontSize(8);
+    doc.setFont(getFont('helvetica'), 'italic');
+    const currentYear = new Date().getFullYear();
+    doc.text(`© ${currentYear} ${copyrightText}`, contentCenterX, pageHeight - marginBottom + 0.25, { align: 'center' });
+  }
+}
+
+// Draw Sudoku solutions page
+function drawSudokuSolutionsPage(
+  doc: jsPDF,
+  puzzles: (SudokuPuzzle & { chapterTitle?: string })[],
+  puzzlePageNumbers: number[],
+  startIndex: number,
+  totalPuzzles: number,
+  title: string,
+  pageWidth: number,
+  pageHeight: number,
+  marginLeft: number,
+  marginRight: number,
+  marginTop: number,
+  marginBottom: number,
+  fontName?: string,
+  copyrightText?: string
+) {
+  const getFont = (defaultFont: string = 'helvetica') => {
+    if (fontName && defaultFont !== 'courier') {
+      return fontName;
+    }
+    return defaultFont;
+  };
+  
+  const usableWidth = pageWidth - marginLeft - marginRight;
+  const contentCenterX = pageWidth / 2;
+  const gridSize = 9;
+  
+  // Title
+  doc.setFontSize(18);
+  doc.setFont(getFont('helvetica'), 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Solutions', contentCenterX, marginTop + 0.3, { align: 'center' });
+  
+  const titleSpace = 0.5;
+  const footerSpace = 0.4;
+  const labelSpace = 0.4;
+  const availableWidth = usableWidth;
+  const availableHeight = pageHeight - marginTop - marginBottom - titleSpace - footerSpace - labelSpace;
+  
+  // Calculate grid spacing and size
+  const gridSpacing = 0.25;
+  const singleGridWidth = (availableWidth - gridSpacing) / 2;
+  const maxCellSizeByWidth = singleGridWidth / gridSize;
+  const maxCellSizeByHeight = availableHeight / gridSize;
+  const maxCellSize = Math.min(maxCellSizeByWidth, maxCellSizeByHeight);
+  const cellSize = Math.max(0.1, Math.min(maxCellSize, 0.15));
+  
+  const gridWidth = gridSize * cellSize;
+  const gridHeight = gridSize * cellSize;
+  const maxSafeGridWidth = singleGridWidth * 0.98;
+  const actualGridWidth = Math.min(gridWidth, maxSafeGridWidth);
+  const actualGridHeight = Math.min(gridHeight, availableHeight);
+  const actualCellSize = actualGridWidth / gridSize;
+  
+  const startY = marginTop + titleSpace + labelSpace;
+  
+  puzzles.forEach((puzzle, index) => {
+    const isLeft = index % 2 === 0;
+    const gridX = isLeft 
+      ? marginLeft + (singleGridWidth - actualGridWidth) / 2
+      : marginLeft + singleGridWidth + gridSpacing + (singleGridWidth - actualGridWidth) / 2;
+    const labelX = isLeft 
+      ? marginLeft + singleGridWidth / 2
+      : marginLeft + singleGridWidth + gridSpacing + singleGridWidth / 2;
+    const gridY = startY + (availableHeight - actualGridHeight) / 2;
+    
+    const puzzleNum = startIndex + index + 1;
+    const origPage = puzzlePageNumbers[index];
+    const labelText = puzzle.chapterTitle
+      ? `Puzzle #${puzzleNum}: ${puzzle.chapterTitle} (Page ${origPage})`
+      : `Puzzle #${puzzleNum} (Page ${origPage})`;
+    
+    // Draw label
+    doc.setFontSize(10);
+    doc.setFont(getFont('helvetica'), 'bold');
+    doc.setTextColor(0, 0, 0);
+    const labelLines = doc.splitTextToSize(labelText, singleGridWidth * 0.9);
+    let labelY = gridY - 0.15;
+    labelLines.forEach((line: string) => {
+      doc.text(line, labelX, labelY, { align: 'center' });
+      labelY += 0.12;
+    });
+    
+    // Draw solution grid
+    const solution = puzzle.solution;
+    doc.setLineWidth(0.002);
+    doc.setDrawColor(0, 0, 0);
+    
+    // Draw grid lines
+    for (let i = 0; i <= gridSize; i++) {
+      const y = gridY + i * actualCellSize;
+      const lineWidth = (i % 3 === 0) ? 0.005 : 0.002;
+      doc.setLineWidth(lineWidth);
+      doc.line(gridX, y, gridX + actualGridWidth, y);
+    }
+    
+    for (let j = 0; j <= gridSize; j++) {
+      const x = gridX + j * actualCellSize;
+      const lineWidth = (j % 3 === 0) ? 0.005 : 0.002;
+      doc.setLineWidth(lineWidth);
+      doc.line(x, gridY, x, gridY + actualGridHeight);
+    }
+    
+    // Draw solution numbers
+    doc.setFont(getFont('helvetica'), 'normal');
+    const cellSizeInPoints = actualCellSize * 72;
+    const fontSize = Math.min(cellSizeInPoints * 0.4, 12);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(0, 0, 0);
+    
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const num = solution[i][j];
+        const cellX = gridX + j * actualCellSize;
+        const cellY = gridY + i * actualCellSize;
+        const text = num.toString();
+        const w = doc.getTextWidth(text);
+        doc.text(text, cellX + (actualCellSize - w) / 2, cellY + actualCellSize * 0.7);
+      }
+    }
+  });
+  
+  // Footer
   doc.setFontSize(9);
   doc.setFont(getFont('helvetica'), 'normal');
   doc.text(`Page ${doc.internal.pages.length - 1}`, contentCenterX, pageHeight - marginBottom + 0.15, { align: 'center' });

@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Sparkles, Grid3x3, BookOpen, Edit2, Trash2, Plus, Upload, FilePlus, ChevronUp, ChevronDown, File, FileText, Type, Copy, Check, HelpCircle, Info } from 'lucide-react';
 import { generateWordsFromTheme } from '@/lib/word-generator';
 import { generatePuzzle, type PuzzleResult } from '@/lib/puzzle-generator';
+import { generateSudoku, generateSudokuPuzzles, type SudokuPuzzle } from '@/lib/sudoku-generator';
 import PuzzlePreview from '@/components/PuzzlePreview';
+import SudokuPreview from '@/components/SudokuPreview';
 import { PDFPageItem } from '@/components/PDFDownloadButton';
 import { Button } from '@/components/ui/button';
 import ExportModal from '@/components/ExportModal';
@@ -18,7 +20,8 @@ import InstructionsPanel from '@/components/InstructionsPanel';
 import HelpModal from '@/components/HelpModal';
 
 type Mode = 'book' | 'single';
-type Difficulty = 'easy' | 'medium' | 'hard';
+type PuzzleType = 'word-search' | 'sudoku';
+type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
 // KDP Standard Sizes
 const PAGE_SIZES = [
@@ -49,6 +52,7 @@ export default function Home() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // App state (declared before auth check)
+  const [puzzleType, setPuzzleType] = useState<PuzzleType>('word-search');
   const [mode, setMode] = useState<Mode>('book');
   const [theme, setTheme] = useState('');
   const [customWords, setCustomWords] = useState('');
@@ -78,7 +82,9 @@ export default function Home() {
   // Generated data
   const [generatedWords, setGeneratedWords] = useState<string[]>([]);
   const [puzzle, setPuzzle] = useState<PuzzleResult | null>(null);
+  const [sudokuPuzzle, setSudokuPuzzle] = useState<SudokuPuzzle | null>(null);
   const [bookPuzzles, setBookPuzzles] = useState<PDFPageItem[]>([]);
+  const [bookSudokus, setBookSudokus] = useState<SudokuPuzzle[]>([]);
   const [isGeneratingWords, setIsGeneratingWords] = useState(false);
   const [isGeneratingStructure, setIsGeneratingStructure] = useState(false);
   const [isGeneratingPuzzle, setIsGeneratingPuzzle] = useState(false);
@@ -280,6 +286,21 @@ export default function Home() {
       }, 500);
     }
   }, [theme, numChapters, wordsPerPuzzle, gridSize, enableWordValidation]);
+
+  // Generate single Sudoku puzzle
+  const handleGenerateSingleSudoku = useCallback(() => {
+    setIsGeneratingPuzzle(true);
+    try {
+      const sudoku = generateSudoku(difficulty);
+      setSudokuPuzzle(sudoku);
+      setPuzzle(null); // Clear word search puzzle
+    } catch (error) {
+      console.error('Error generating Sudoku:', error);
+      alert('❌ Failed to generate Sudoku puzzle');
+    } finally {
+      setIsGeneratingPuzzle(false);
+    }
+  }, [difficulty]);
 
   // Generate words from theme (for single puzzle mode)
   const handleGenerateWords = useCallback(async () => {
@@ -1000,6 +1021,29 @@ export default function Home() {
 
   // Generate puzzles for all chapters
   const handleGeneratePuzzles = useCallback(() => {
+    // For Sudoku, generate directly (no chapters needed, just puzzle numbers)
+    if (puzzleType === 'sudoku') {
+      setIsGeneratingPuzzle(true);
+      setGenerationProgress({ current: 0, total: numChapters });
+      setBookSudokus([]);
+      
+      const sudokus: SudokuPuzzle[] = [];
+      
+      // Generate Sudoku puzzles (no chapter structure needed)
+      for (let i = 0; i < numChapters; i++) {
+        const sudoku = generateSudoku(difficulty);
+        sudokus.push(sudoku);
+        setGenerationProgress({ current: i + 1, total: numChapters });
+      }
+      
+      setBookSudokus(sudokus);
+      setBookPuzzles([]); // Clear word search puzzles
+      setIsGeneratingPuzzle(false);
+      setGenerationProgress({ current: 0, total: 0 });
+      return;
+    }
+    
+    // Word Search generation (existing logic)
     if (!bookStructure || bookStructure.chapters.length === 0) {
       alert('Please generate book structure first');
       return;
@@ -1132,7 +1176,7 @@ export default function Home() {
     };
 
     generateNextPuzzle(0);
-  }, [bookStructure, wordsPerPuzzle, gridSize, difficulty, addBlankPagesBetweenChapters]);
+  }, [bookStructure, wordsPerPuzzle, gridSize, difficulty, addBlankPagesBetweenChapters, puzzleType]);
 
   // Generate single puzzle
   const handleGenerateSinglePuzzle = useCallback(() => {
@@ -1160,9 +1204,9 @@ export default function Home() {
     }
   }, [generatedWords, customWords, singleWords, gridSize, difficulty]);
 
-  // Auto-generate single puzzle when words change
+  // Auto-generate single puzzle when words change (only for word search)
   useEffect(() => {
-    if (mode === 'single' && (generatedWords.length > 0 || customWords.trim())) {
+    if (puzzleType === 'word-search' && mode === 'single' && (generatedWords.length > 0 || customWords.trim())) {
       const wordsToUse = [
         ...generatedWords,
         ...customWords.split(/[,\n]/).map(w => w.trim().toUpperCase()).filter(w => w.length > 0)
@@ -1173,15 +1217,19 @@ export default function Home() {
       const wordsForPuzzle = wordsToUse.slice(0, singleWords);
       const result = generatePuzzle(wordsForPuzzle, gridSize, difficulty);
       setPuzzle(result);
+      setSudokuPuzzle(null); // Clear Sudoku
     }
-  }, [generatedWords, customWords, gridSize, difficulty, mode, singleWords]);
+  }, [generatedWords, customWords, gridSize, difficulty, mode, singleWords, puzzleType]);
 
   // Update selected puzzle index when puzzles are generated
   useEffect(() => {
-    if (mode === 'book' && bookPuzzles.length > 0 && selectedPuzzleIndex === null) {
+    if (mode === 'book' && puzzleType === 'word-search' && bookPuzzles.length > 0 && selectedPuzzleIndex === null) {
       setSelectedPuzzleIndex(0);
     }
-  }, [bookPuzzles.length, mode, selectedPuzzleIndex]);
+    if (mode === 'book' && puzzleType === 'sudoku' && bookSudokus.length > 0 && selectedPuzzleIndex === null) {
+      setSelectedPuzzleIndex(0);
+    }
+  }, [bookPuzzles.length, bookSudokus.length, mode, selectedPuzzleIndex, puzzleType]);
 
   // Show loading state while checking auth
   if (isCheckingAuth) {
@@ -1198,11 +1246,18 @@ export default function Home() {
   }
 
   // Display logic: Handle blank pages in preview
-  const displayPuzzle = mode === 'book' && bookPuzzles.length > 0 
+  const displayPuzzle = mode === 'book' && puzzleType === 'word-search' && bookPuzzles.length > 0 
     ? (selectedPuzzleIndex !== null && selectedPuzzleIndex < bookPuzzles.length 
         ? bookPuzzles[selectedPuzzleIndex] 
         : bookPuzzles[0])
     : puzzle;
+  
+  // Display logic for Sudoku
+  const displaySudoku = mode === 'book' && puzzleType === 'sudoku' && bookSudokus.length > 0
+    ? (selectedPuzzleIndex !== null && selectedPuzzleIndex < bookSudokus.length
+        ? bookSudokus[selectedPuzzleIndex]
+        : bookSudokus[0])
+    : sudokuPuzzle;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
@@ -1217,39 +1272,80 @@ export default function Home() {
               </div>
               <h1 className="text-2xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
                 Printable Puzzle Book Generator
-              </h1>
++          </h1>
             </div>
             
-            {/* Center: Mode Toggle */}
-            <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
-              <button
-                onClick={() => {
-                  setMode('single');
-                  setBookStructure(null);
-                  setBookPuzzles([]);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                  mode === 'single'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                }`}
-              >
-                Single Puzzle
-              </button>
-              <button
-                onClick={() => {
-                  setMode('book');
-                  setPuzzle(null);
-                  setGeneratedWords([]);
-                }}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                  mode === 'book'
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                }`}
-              >
-                Book Mode
-              </button>
+            {/* Center: Puzzle Type and Mode Toggle */}
+            <div className="flex items-center gap-3">
+              {/* Puzzle Type Selector */}
+              <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
+                <button
+                  onClick={() => {
+                    setPuzzleType('word-search');
+                    setPuzzle(null);
+                    setSudokuPuzzle(null);
+                    setBookPuzzles([]);
+                    setBookSudokus([]);
+                  }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                    puzzleType === 'word-search'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/30 scale-105'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  }`}
+                >
+                  Word Search
+                </button>
+                <button
+                  onClick={() => {
+                    setPuzzleType('sudoku');
+                    setPuzzle(null);
+                    setSudokuPuzzle(null);
+                    setBookPuzzles([]);
+                    setBookSudokus([]);
+                  }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                    puzzleType === 'sudoku'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/30 scale-105'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  }`}
+                >
+                  Sudoku
+                </button>
+              </div>
+              
+              {/* Mode Toggle */}
+              <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
+                <button
+                  onClick={() => {
+                    setMode('single');
+                    setBookStructure(null);
+                    setBookPuzzles([]);
+                    setBookSudokus([]);
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                    mode === 'single'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  }`}
+                >
+                  Single Puzzle
+                </button>
+                <button
+                  onClick={() => {
+                    setMode('book');
+                    setPuzzle(null);
+                    setSudokuPuzzle(null);
+                    setGeneratedWords([]);
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                    mode === 'book'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                  }`}
+                >
+                  Book Mode
+                </button>
+              </div>
             </div>
 
             {/* Right: Export, Help and Logout Buttons */}
@@ -1357,8 +1453,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* Single CSV Import (Book Mode) */}
-            {mode === 'book' && (
+            {/* Single CSV Import (Book Mode) - Only for Word Search */}
+            {mode === 'book' && puzzleType === 'word-search' && (
               <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-slate-700/50 hover:border-slate-600/50 transition-all duration-200">
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Import CSV
@@ -1374,8 +1470,8 @@ export default function Home() {
                   <p className="text-xs text-blue-200/80 leading-relaxed">
                     If you include chapter titles in your CSV (using <code className="text-blue-300">#TITLE:</code> or title in first column), 
                     <strong className="text-blue-100"> all words from each chapter will go into one puzzle</strong>, regardless of the "Words per Puzzle" setting.
-                  </p>
-                </div>
+          </p>
+        </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-2">
@@ -1475,71 +1571,179 @@ export default function Home() {
             )}
 
 
-            {/* Content Section - Open by default */}
-            <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
-              <button
-                onClick={() => setIsContentSectionOpen(!isContentSectionOpen)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
-              >
-                <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Content</h3>
-                <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isContentSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
-              </button>
-              {isContentSectionOpen && (
-                <div className="p-5 space-y-5 border-t border-slate-700/50">
-                  {/* Main Theme */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-2">
-                      Main Theme
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={theme}
-                        onChange={(e) => setTheme(e.target.value)}
-                        placeholder="e.g., Winter, Gardening..."
-                        className="flex-1 px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
-                        disabled={isGeneratingStructure}
-                      />
-                      {mode === 'book' ? (
-                        <Button
-                          onClick={handleGenerateStructure}
-                          disabled={isGeneratingStructure || !theme.trim()}
-                          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
-                          size="sm"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={handleGenerateWords}
-                          disabled={isGeneratingWords || !theme.trim()}
-                          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
-                          size="sm"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
-                      )}
+            {/* Sudoku Settings - Single collapsible section */}
+            {puzzleType === 'sudoku' ? (
+              <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                <button
+                  onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                >
+                  <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Sudoku Settings</h3>
+                  <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                </button>
+                {isSettingsSectionOpen && (
+                  <div className="p-5 space-y-5 border-t border-slate-700/50">
+                    {/* Difficulty */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-2">
+                        Difficulty
+                      </label>
+                      <select
+                        value={difficulty}
+                        onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+                        className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm shadow-sm"
+                      >
+                        <option value="easy">Easy (36-45 clues)</option>
+                        <option value="medium">Medium (30-35 clues)</option>
+                        <option value="hard">Hard (25-29 clues)</option>
+                        <option value="expert">Expert (17-24 clues)</option>
+                      </select>
                     </div>
+                    
+                    {/* Number of Puzzles (Book Mode) */}
+                    {mode === 'book' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          Number of Puzzles
+                        </label>
+                        <input
+                          type="number"
+                          value={numChapters}
+                          onChange={(e) => setNumChapters(parseInt(e.target.value) || 2)}
+                          min={1}
+                          max={100}
+                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Generate Button */}
+                    {mode === 'single' ? (
+                      <Button
+                        onClick={handleGenerateSingleSudoku}
+                        disabled={isGeneratingPuzzle}
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-bold"
+                        size="lg"
+                      >
+                        {isGeneratingPuzzle ? 'Generating...' : 'Generate Puzzle'}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleGeneratePuzzles}
+                          disabled={isGeneratingPuzzle}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
+                          size="sm"
+                        >
+                          {isGeneratingPuzzle 
+                            ? `Generating... ${generationProgress.current}/${generationProgress.total}`
+                            : 'Generate Sudoku Puzzles'}
+                        </Button>
+                        
+                        {/* Puzzle List for Sudoku (Book Mode) - Simple numbered list */}
+                        {bookSudokus.length > 0 && (
+                          <div className="mt-4">
+                            <label className="block text-xs font-medium text-slate-400 mb-2">
+                              Puzzles ({bookSudokus.length})
+                            </label>
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                              {bookSudokus.map((sudoku, index) => {
+                                const isSelected = selectedPuzzleIndex === index;
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center justify-between group text-xs transition-all duration-200 border border-slate-700/30 cursor-pointer hover:bg-slate-700/80 hover:border-slate-600/50 hover:shadow-md ${
+                                      isSelected ? 'ring-2 ring-blue-500/50 bg-slate-700/80 shadow-lg shadow-blue-500/20' : ''
+                                    }`}
+                                    onClick={() => setSelectedPuzzleIndex(index)}
+                                  >
+                                    <span className="text-slate-300">
+                                      Puzzle {index + 1} ✓
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Content Section - Open by default */}
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                  <button
+                    onClick={() => setIsContentSectionOpen(!isContentSectionOpen)}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                  >
+                    <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Content</h3>
+                    <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isContentSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                  </button>
+                  {isContentSectionOpen && (
+                    <div className="p-5 space-y-5 border-t border-slate-700/50">
+                  {/* Main Theme - Only for Word Search */}
+                  {puzzleType === 'word-search' && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-400 mb-2">
+                        Main Theme
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={theme}
+                          onChange={(e) => setTheme(e.target.value)}
+                          placeholder="e.g., Winter, Gardening..."
+                          className="flex-1 px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                          disabled={isGeneratingStructure}
+                        />
+                        {mode === 'book' ? (
+                          <Button
+                            onClick={handleGenerateStructure}
+                            disabled={isGeneratingStructure || !theme.trim()}
+                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
+                            size="sm"
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={handleGenerateWords}
+                            disabled={isGeneratingWords || !theme.trim()}
+                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
+                            size="sm"
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
 
-                  {/* Word Validation */}
-                  <div>
-                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={enableWordValidation}
-                        onChange={(e) => setEnableWordValidation(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span>Word Validation</span>
-                    </label>
-                    <p className="text-xs text-slate-400 mt-1 ml-6">
-                      Check words against dictionary API (removes spelling errors)
-                    </p>
-                  </div>
+                  {/* Word Validation - Only for Word Search */}
+                  {puzzleType === 'word-search' && (
+                    <div>
+                      <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enableWordValidation}
+                          onChange={(e) => setEnableWordValidation(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span>Word Validation</span>
+                      </label>
+                      <p className="text-xs text-slate-400 mt-1 ml-6">
+                        Check words against dictionary API (removes spelling errors)
+                      </p>
+                    </div>
+                  )}
 
-                  {/* Chapter List (Book Mode) */}
-                  {mode === 'book' && bookStructure && bookStructure.chapters.length > 0 && (
+
+                  {/* Chapter List (Book Mode) - Only for Word Search */}
+                  {mode === 'book' && puzzleType === 'word-search' && bookStructure && bookStructure.chapters.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-xs font-medium text-slate-400">
@@ -1588,8 +1792,9 @@ export default function Home() {
                                     <span className={`truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
                                       {chapter.isBlank ? chapter.title : (
                                         <>
-                                          {chapter.title} ({chapter.words.length})
-                                          {chapter.words.length > csvWordsPerPuzzle && (
+                                          {chapter.title}
+                                          {puzzleType === 'word-search' && ` (${chapter.words.length})`}
+                                          {puzzleType === 'word-search' && chapter.words.length > csvWordsPerPuzzle && (
                                             <span className="ml-1.5 px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded border border-blue-500/30" title={`All ${chapter.words.length} words will be in one puzzle`}>
                                               All in one
                                             </span>
@@ -1604,7 +1809,7 @@ export default function Home() {
                                   <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move up"><ChevronUp className="h-3 w-3" /></button>
                                   <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move down"><ChevronDown className="h-3 w-3" /></button>
                                   {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200 hover:scale-110" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
-                                  {!chapter.isBlank && <button onClick={() => handleEditWords(index)} className="p-1.5 rounded-md text-slate-400 hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110" title="Edit words"><Search className="h-3 w-3" /></button>}
+                                  {!chapter.isBlank && puzzleType === 'word-search' && <button onClick={() => handleEditWords(index)} className="p-1.5 rounded-md text-slate-400 hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110" title="Edit words"><Search className="h-3 w-3" /></button>}
                                   <button onClick={() => handleDeleteChapter(index)} className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:scale-110" title="Delete"><Trash2 className="h-3 w-3" /></button>
                                 </div>
                               </div>
@@ -1643,7 +1848,7 @@ export default function Home() {
                         </label>
                         <Button
                           onClick={handleGeneratePuzzles}
-                          disabled={isGeneratingPuzzle || bookStructure.chapters.length === 0}
+                          disabled={isGeneratingPuzzle || (puzzleType === 'word-search' && (!bookStructure || bookStructure.chapters.length === 0))}
                           className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
                           size="sm"
                         >
@@ -1656,8 +1861,8 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Single Mode Word Input */}
-                  {mode === 'single' && (
+                  {/* Single Mode Word Input - Only for Word Search */}
+                  {mode === 'single' && puzzleType === 'word-search' && (
                     <>
                       <div>
                         <label className="block text-xs font-semibold text-slate-300 mb-2">
@@ -1722,98 +1927,106 @@ export default function Home() {
               )}
             </div>
 
-            {/* Settings Section - Collapsed by default */}
-            <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
-              <button
-                onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
-              >
-                <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Settings</h3>
-                <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
-              </button>
-              {isSettingsSectionOpen && (
-                <div className="p-5 space-y-5 border-t border-slate-700/50">
-                  {/* Grid Size - Slider */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-3">
-                      Grid Size: <span className="text-blue-400 font-bold">{gridSize}×{gridSize}</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="5"
-                      max="30"
-                      step="1"
-                      value={gridSize}
-                      onChange={(e) => setGridSize(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
-                      <span>5</span>
-                      <span>15</span>
-                      <span>30</span>
+            {/* Settings Section - Only for Word Search */}
+            {puzzleType === 'word-search' && (
+              <>
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                  <button
+                    onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                  >
+                    <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Settings</h3>
+                    <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                  </button>
+                  {isSettingsSectionOpen && (
+                    <div className="p-5 space-y-5 border-t border-slate-700/50">
+                      {/* Grid Size - Slider */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-3">
+                          Grid Size: <span className="text-blue-400 font-bold">{gridSize}×{gridSize}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="5"
+                          max="30"
+                          step="1"
+                          value={gridSize}
+                          onChange={(e) => setGridSize(parseInt(e.target.value))}
+                          className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                          <span>5</span>
+                          <span>15</span>
+                          <span>30</span>
+                        </div>
+                      </div>
+                      
+                      {/* Difficulty */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          Difficulty
+                        </label>
+                        <select
+                          value={difficulty}
+                          onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm shadow-sm"
+                        >
+                          <option value="easy">Easy</option>
+                          <option value="medium">Medium</option>
+                          <option value="hard">Hard</option>
+                        </select>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Difficulty */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-2">
-                      Difficulty
-                    </label>
-                    <select
-                      value={difficulty}
-                      onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                      className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm shadow-sm"
-                    >
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Book Config Section - Collapsed by default (Book Mode Only) */}
-            {mode === 'book' && (
-              <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
-                <button
-                  onClick={() => setIsBookConfigSectionOpen(!isBookConfigSectionOpen)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
-                >
-                  <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Book Config</h3>
-                  <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isBookConfigSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
-                </button>
-                {isBookConfigSectionOpen && (
-                  <div className="p-5 space-y-5 border-t border-slate-700/50">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-2">
-                        Words per Puzzle
-                      </label>
-                      <input
-                        type="number"
-                        value={wordsPerPuzzle}
-                        onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
-                        min={5}
-                        max={30}
-                        className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-2">
-                        Number of Chapters
-                      </label>
-                      <input
-                        type="number"
-                        value={numChapters}
-                        onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
-                        min={5}
-                        max={100}
-                        className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
-                      />
-                    </div>
+                {/* Book Config Section - Only for Word Search Book Mode */}
+                {mode === 'book' && (
+                  <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                    <button
+                      onClick={() => setIsBookConfigSectionOpen(!isBookConfigSectionOpen)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                    >
+                      <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Book Config</h3>
+                      <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isBookConfigSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                    </button>
+                    {isBookConfigSectionOpen && (
+                      <div className="p-5 space-y-5 border-t border-slate-700/50">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-2">
+                            Words per Puzzle
+                          </label>
+                          <input
+                            type="number"
+                            value={wordsPerPuzzle}
+                            onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
+                            min={5}
+                            max={30}
+                            className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-300 mb-2">
+                            Number of Chapters
+                          </label>
+                          <input
+                            type="number"
+                            value={numChapters}
+                            onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
+                            min={5}
+                            max={100}
+                            className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
+            )}
+            
+            {/* Close the outer fragment from line 1675 */}
+            </>
             )}
 
             {/* Mode-specific Controls */}
@@ -1822,8 +2035,14 @@ export default function Home() {
             {/* Generate Button (Single Mode) */}
             {mode === 'single' && (
               <Button
-                onClick={handleGenerateSinglePuzzle}
-                disabled={isGeneratingPuzzle || (generatedWords.length === 0 && !customWords.trim())}
+                onClick={() => {
+                  if (puzzleType === 'sudoku') {
+                    handleGenerateSingleSudoku();
+                  } else {
+                    handleGenerateSinglePuzzle();
+                  }
+                }}
+                disabled={puzzleType === 'word-search' && isGeneratingPuzzle && (generatedWords.length === 0 && !customWords.trim())}
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-bold"
                 size="lg"
               >
@@ -1839,7 +2058,28 @@ export default function Home() {
           <main className="overflow-hidden flex flex-col">
             {/* Puzzle Preview */}
             <div className="flex-1 overflow-auto min-h-0">
-              {displayPuzzle ? (
+              {puzzleType === 'sudoku' ? (
+                displaySudoku ? (
+                  <SudokuPreview
+                    puzzle={displaySudoku}
+                    title={mode === 'book' && bookSudokus.length > 0
+                      ? `Puzzle ${(selectedPuzzleIndex !== null ? selectedPuzzleIndex : 0) + 1} of ${bookSudokus.length}`
+                      : 'Sudoku Puzzle'}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-slate-900/50 rounded-lg border border-slate-700/50 text-slate-400">
+                    <div className="text-center">
+                      <Grid3x3 className="h-16 w-16 mx-auto mb-2 text-slate-500" />
+                      <p className="text-slate-400">No Sudoku puzzle generated yet</p>
+                      <p className="text-xs mt-1 text-slate-500">
+                        {mode === 'single' 
+                          ? 'Click "Generate Puzzle" to create a Sudoku'
+                          : 'Generate book structure and click "Generate Pages" to create Sudoku puzzles'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              ) : displayPuzzle ? (
                 'isBlank' in displayPuzzle ? (
                   <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
                     <div className="text-center">
@@ -1887,11 +2127,17 @@ export default function Home() {
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
         mode={mode}
-        puzzles={mode === 'book' 
-          ? bookPuzzles 
-          : puzzle 
-            ? [{ ...puzzle, chapterTitle: theme || 'Puzzle' }]
-            : []}
+        puzzles={puzzleType === 'sudoku'
+          ? (mode === 'book'
+              ? bookSudokus.map((sudoku, idx) => ({ ...sudoku, chapterTitle: bookStructure?.chapters[idx]?.title }))
+              : sudokuPuzzle
+                ? [{ ...sudokuPuzzle, chapterTitle: theme || 'Sudoku Puzzle' }]
+                : [])
+          : (mode === 'book' 
+              ? bookPuzzles 
+              : puzzle 
+                ? [{ ...puzzle, chapterTitle: theme || 'Puzzle' }]
+                : [])}
         bookTitle={bookStructure?.bookTitle}
         theme={theme}
         bookStructure={bookStructure}
