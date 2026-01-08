@@ -1617,17 +1617,8 @@ export default function Home() {
                       </div>
                     )}
                     
-                    {/* Generate Button */}
-                    {mode === 'single' ? (
-                      <Button
-                        onClick={handleGenerateSingleSudoku}
-                        disabled={isGeneratingPuzzle}
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-bold"
-                        size="lg"
-                      >
-                        {isGeneratingPuzzle ? 'Generating...' : 'Generate Puzzle'}
-                      </Button>
-                    ) : (
+                    {/* Generate Button - Only for Book Mode (Single mode has button at bottom) */}
+                    {mode === 'book' && (
                       <>
                         <Button
                           onClick={handleGeneratePuzzles}

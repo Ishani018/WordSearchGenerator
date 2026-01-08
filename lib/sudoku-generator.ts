@@ -145,33 +145,56 @@ function generateCompleteSudoku(): number[][] {
 
 /**
  * Count the number of solutions (for uniqueness check)
+ * 
+ * Uses linear index-based backtracking to avoid double-counting:
+ * - Recursive helper solve(index) where index is linear cell position (0-80)
+ * - If index === 81, increment count (base case: full board found)
+ * - If count >= limit, return true to stop searching early
+ * - Calculate row and col from index
+ * - If cell is not 0, recurse to next index
+ * - If cell is 0, try numbers 1-9, recurse, and backtrack
  */
 function countSolutions(grid: number[][], limit: number = 2): number {
   let count = 0;
 
-  function solve(): boolean {
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (grid[row][col] === 0) {
-          for (let num = 1; num <= 9; num++) {
-            if (isValidPlacement(grid, row, col, num)) {
-              grid[row][col] = num;
-              if (solve()) {
-                count++;
-                if (count >= limit) return true;
-              }
-              grid[row][col] = 0;
-            }
-          }
-          return false;
+  function solve(index: number): boolean {
+    // Base case: all 81 cells processed (valid solution found)
+    if (index === 81) {
+      count++;
+      // Return true if we've reached the limit (to stop searching early)
+      if (count >= limit) {
+        return true;
+      }
+      return false;
+    }
+
+    // Calculate row and col from linear index
+    const row = Math.floor(index / 9);
+    const col = index % 9;
+
+    // If cell is already filled, move to next cell
+    if (grid[row][col] !== 0) {
+      return solve(index + 1);
+    }
+
+    // Cell is empty (0), try numbers 1-9
+    for (let num = 1; num <= 9; num++) {
+      if (isValidPlacement(grid, row, col, num)) {
+        grid[row][col] = num;
+        // Recursively try to solve next cell
+        if (solve(index + 1)) {
+          // Limit reached, stop searching
+          return true;
         }
+        // Backtrack: reset cell to 0
+        grid[row][col] = 0;
       }
     }
-    count++;
-    return true;
+    // No valid number found for this cell
+    return false;
   }
 
-  solve();
+  solve(0);
   return count;
 }
 
