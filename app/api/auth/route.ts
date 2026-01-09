@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
         ADMIN_PASSWORD: !!process.env.ADMIN_PASSWORD,
         SAMPA_USERNAME: !!process.env.SAMPA_USERNAME,
         SAMPA_PASSWORD: !!process.env.SAMPA_PASSWORD,
-        USER3_USERNAME: !!process.env.USER3_USERNAME,
-        USER3_PASSWORD: !!process.env.USER3_PASSWORD,
+        SUPER10_USERNAME: !!process.env.SUPER10_USERNAME,
+        SUPER10_PASSWORD: !!process.env.SUPER10_PASSWORD,
       }
     });
 
