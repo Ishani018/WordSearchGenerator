@@ -1033,17 +1033,15 @@ export default function Home() {
     // For Sudoku, generate directly (no chapters needed, just puzzle numbers)
     if (puzzleType === 'sudoku') {
       setIsGeneratingPuzzle(true);
-      setGenerationProgress({ current: 0, total: numChapters });
+      setGenerationProgress({ current: 0, total: 1 });
       setBookSudokus([]);
       
       const sudokus: SudokuPuzzle[] = [];
       
-      // Generate Sudoku puzzles (no chapter structure needed)
-      for (let i = 0; i < numChapters; i++) {
-        const sudoku = generateSudoku(difficulty);
-        sudokus.push(sudoku);
-        setGenerationProgress({ current: i + 1, total: numChapters });
-      }
+      // Generate only 1 Sudoku puzzle for book mode
+      const sudoku = generateSudoku(difficulty);
+      sudokus.push(sudoku);
+      setGenerationProgress({ current: 1, total: 1 });
       
       setBookSudokus(sudokus);
       setBookPuzzles([]); // Clear word search puzzles
@@ -1413,21 +1411,14 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-100px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-6 overflow-y-auto pr-2">
-            {/* Change Mode Button - Collapsible Side Menu */}
-            <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
-              <button
-                onClick={() => setShowModeSelection(true)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-xl group"
-              >
-                <div className="flex items-center gap-3">
-                  <Grid3x3 className="h-5 w-5 text-blue-400" />
-                  <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
-                    Change Mode
-                  </span>
-                </div>
-                <ChevronUp className="h-4 w-4 text-slate-400" />
-              </button>
-            </div>
+            {/* Change Mode Button */}
+            <button
+              onClick={() => setShowModeSelection(true)}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <Grid3x3 className="h-5 w-5" />
+              Change Mode
+            </button>
 
             {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
             {mode === 'book' && isGeneratingStructure && (
