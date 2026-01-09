@@ -1241,8 +1241,8 @@ export default function Home() {
   // Show loading state while checking auth
   if (isCheckingAuth) {
   return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="text-slate-400">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -1255,16 +1255,16 @@ export default function Home() {
   // Show mode selection modal if puzzle type not selected
   if (showModeSelection || puzzleType === null) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 p-8 max-w-md w-full">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-card/95 backdrop-blur-md rounded-2xl shadow-2xl border border-border/50 p-8 max-w-md w-full">
           <div className="text-center mb-8">
-            <div className="bg-blue-500/10 p-4 rounded-xl inline-block mb-4 ring-2 ring-blue-500/20">
-              <BookOpen className="h-12 w-12 text-blue-400" />
+            <div className="bg-primary/10 p-4 rounded-xl inline-block mb-4 ring-2 ring-ring/20">
+              <BookOpen className="h-12 w-12 text-primary" />
             </div>
-            <h2 className="text-3xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent mb-2">
+            <h2 className="text-3xl font-extrabold text-foreground tracking-tight mb-2">
               Choose Your Mode
             </h2>
-            <p className="text-slate-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Select the type of puzzle you want to generate
             </p>
           </div>
@@ -1279,7 +1279,7 @@ export default function Home() {
                 setBookPuzzles([]);
                 setBookSudokus([]);
               }}
-              className="w-full p-6 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl text-white font-bold text-lg shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+              className="w-full p-6 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl text-primary-foreground font-bold text-lg shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
             >
               <Search className="h-6 w-6" />
               Word Search
@@ -1294,7 +1294,7 @@ export default function Home() {
                 setBookPuzzles([]);
                 setBookSudokus([]);
               }}
-              className="w-full p-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl text-white font-bold text-lg shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+              className="w-full p-6 bg-primary text-primary-foreground hover:opacity-90 rounded-xl text-primary-foreground font-bold text-lg shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
             >
               <Grid3x3 className="h-6 w-6" />
               Sudoku
@@ -1320,17 +1320,17 @@ export default function Home() {
     : sudokuPuzzle;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50" suppressHydrationWarning>
+    <div className="min-h-screen bg-background text-foreground" suppressHydrationWarning>
       {/* Header */}
-      <header className="border-b border-slate-800/50 bg-gradient-to-r from-slate-900 via-slate-900/95 to-slate-900 backdrop-blur-md shadow-lg">
+      <header className="border-b border-border bg-background/80 backdrop-blur-md shadow-lg">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: Logo and Title */}
             <div className="flex items-center gap-3">
-              <div className="bg-blue-500/10 p-2 rounded-xl ring-2 ring-blue-500/20">
-                <BookOpen className="h-6 w-6 text-blue-400 drop-shadow-lg" />
+              <div className="bg-primary/10 p-2 rounded-xl ring-2 ring-ring/20">
+                <BookOpen className="h-6 w-6 text-primary drop-shadow-lg" />
               </div>
-              <h1 className="text-2xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
+              <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
                 Printable Puzzle Book Generator
 +          </h1>
             </div>
@@ -1338,7 +1338,7 @@ export default function Home() {
             {/* Center: Mode Toggle */}
             <div className="flex items-center gap-3">
               {/* Mode Toggle */}
-              <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
+              <div className="flex gap-2 bg-secondary/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-border/50">
                 <button
                   onClick={() => {
                     setMode('single');
@@ -1348,8 +1348,8 @@ export default function Home() {
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                     mode === 'single'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                      ? 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm scale-105'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                   }`}
                 >
                   Single Puzzle
@@ -1363,8 +1363,8 @@ export default function Home() {
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                     mode === 'book'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 scale-105'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                      ? 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm scale-105'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                   }`}
                 >
                   Book Mode
@@ -1377,7 +1377,7 @@ export default function Home() {
               <Button
                 onClick={() => setShowExportModal(true)}
                 size="sm"
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white border-red-600 shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-primary-foreground border-red-600 shadow-lg shadow-red-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
                 title="Export / Download"
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -1387,7 +1387,7 @@ export default function Home() {
                 onClick={() => setShowHelpModal(true)}
                 variant="outline"
                 size="sm"
-                className="border-slate-600/50 hover:bg-slate-800/80 hover:border-slate-500 text-slate-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
+                className="border-border/50 hover:bg-secondary/80 hover:border-border text-foreground hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
                 title="Help & Instructions"
               >
                 <HelpCircle className="h-4 w-4 mr-2" />
@@ -1397,7 +1397,7 @@ export default function Home() {
                 onClick={handleLogout}
                 variant="outline"
                 size="sm"
-                className="border-slate-600/50 hover:bg-slate-800/80 hover:border-slate-500 text-slate-300 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
+                className="border-border/50 hover:bg-secondary/80 hover:border-border text-foreground hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm"
               >
                 Logout
               </Button>
@@ -1414,7 +1414,7 @@ export default function Home() {
             {/* Change Mode Button */}
             <button
               onClick={() => setShowModeSelection(true)}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-primary-foreground hover:opacity-90 text-primary-foreground font-semibold py-3 px-4 rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
             >
               <Grid3x3 className="h-5 w-5" />
               Change Mode
@@ -1422,21 +1422,21 @@ export default function Home() {
 
             {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
             {mode === 'book' && isGeneratingStructure && (
-              <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 border border-blue-500/50 shadow-xl shadow-blue-500/20">
+              <div className="bg-primary rounded-xl p-5 border border-primary/50 shadow-sm/20">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white drop-shadow-sm">
+                    <span className="text-sm font-bold text-primary-foreground drop-shadow-sm">
                       {structureProgress.status || 'Generating book structure...'}
                     </span>
                     {structureProgress.total > 0 && (
-                      <span className="text-xs text-blue-100 font-bold bg-blue-500/30 px-2 py-1 rounded-full">
+                      <span className="text-xs text-primary-foreground font-bold bg-primary/30 px-2 py-1 rounded-full">
                         {Math.round((structureProgress.current / structureProgress.total) * 100)}%
                       </span>
                     )}
                   </div>
-                  <div className="w-full bg-blue-800/50 rounded-full h-4 overflow-hidden shadow-inner">
+                  <div className="w-full bg-primary/20 rounded-full h-4 overflow-hidden shadow-inner">
                     <div 
-                      className="bg-gradient-to-r from-white via-blue-50 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
+                      className="bg-gradient-to-r from-white via-primary/20 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
                       style={{ 
                         width: structureProgress.total > 0 
                           ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
@@ -1445,7 +1445,7 @@ export default function Home() {
                     />
                   </div>
                   {structureProgress.total > 0 && (
-                    <div className="text-xs text-blue-100 text-center font-medium">
+                    <div className="text-xs text-primary-foreground text-center font-medium">
                       {structureProgress.current} / {structureProgress.total} chapters
                     </div>
                   )}
@@ -1455,21 +1455,21 @@ export default function Home() {
 
             {/* Word Generation Progress (Single Mode) - Moved to top for visibility */}
             {mode === 'single' && isGeneratingWords && (
-              <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 border border-blue-500/50 shadow-xl shadow-blue-500/20">
+              <div className="bg-primary rounded-xl p-5 border border-primary/50 shadow-sm/20">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white drop-shadow-sm">
+                    <span className="text-sm font-bold text-primary-foreground drop-shadow-sm">
                       {wordGenerationProgress.status || 'Generating words...'}
                     </span>
                     {wordGenerationProgress.total > 0 && (
-                      <span className="text-xs text-blue-100 font-bold bg-blue-500/30 px-2 py-1 rounded-full">
+                      <span className="text-xs text-primary-foreground font-bold bg-primary/30 px-2 py-1 rounded-full">
                         {Math.round((wordGenerationProgress.current / wordGenerationProgress.total) * 100)}%
                       </span>
                     )}
                   </div>
-                  <div className="w-full bg-blue-800/50 rounded-full h-4 overflow-hidden shadow-inner">
+                  <div className="w-full bg-primary/20 rounded-full h-4 overflow-hidden shadow-inner">
                     <div 
-                      className="bg-gradient-to-r from-white via-blue-50 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
+                      className="bg-gradient-to-r from-white via-primary/20 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
                       style={{ 
                         width: wordGenerationProgress.total > 0 
                           ? `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
@@ -1478,7 +1478,7 @@ export default function Home() {
                     />
                   </div>
                   {wordGenerationProgress.total > 0 && (
-                    <div className="text-xs text-blue-100 text-center font-medium">
+                    <div className="text-xs text-primary-foreground text-center font-medium">
                       {wordGenerationProgress.current} / {wordGenerationProgress.total} words
                     </div>
                   )}
@@ -1488,26 +1488,26 @@ export default function Home() {
 
             {/* Single CSV Import (Book Mode) - Only for Word Search */}
             {mode === 'book' && puzzleType === 'word-search' && (
-              <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-slate-700/50 hover:border-slate-600/50 transition-all duration-200">
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+              <div className="bg-card/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-border/50 hover:border-border/50 transition-all duration-200">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   Import CSV
                 </label>
-                <p className="text-xs text-slate-400 mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   Upload a single CSV file with words. Words will be split into chapters based on "Words per Puzzle" setting.
                 </p>
-                <div className="mb-3 p-2.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <p className="text-xs text-blue-300 font-medium mb-1 flex items-center gap-1.5">
+                <div className="mb-3 p-2.5 bg-primary/10 border border-primary/30 rounded-lg">
+                  <p className="text-xs text-foreground font-medium mb-1 flex items-center gap-1.5">
                     <Info className="h-3.5 w-3.5" />
                     Tip: Include Chapter Titles in CSV
                   </p>
-                  <p className="text-xs text-blue-200/80 leading-relaxed">
-                    If you include chapter titles in your CSV (using <code className="text-blue-300">#TITLE:</code> or title in first column), 
-                    <strong className="text-blue-100"> all words from each chapter will go into one puzzle</strong>, regardless of the "Words per Puzzle" setting.
+                  <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                    If you include chapter titles in your CSV (using <code className="text-foreground">#TITLE:</code> or title in first column), 
+                    <strong className="text-primary-foreground"> all words from each chapter will go into one puzzle</strong>, regardless of the "Words per Puzzle" setting.
           </p>
         </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-2">
+                    <label className="block text-xs font-semibold text-foreground mb-2">
                       Words per Puzzle
                     </label>
                     <input
@@ -1516,17 +1516,17 @@ export default function Home() {
                       max="50"
                       value={csvWordsPerPuzzle}
                       onChange={(e) => setCsvWordsPerPuzzle(Math.max(5, Math.min(50, parseInt(e.target.value) || 15)))}
-                      className="w-full px-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 shadow-sm"
+                      className="w-full px-4 py-2.5 text-sm bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 shadow-sm"
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-slate-300 mb-3 cursor-pointer group">
+                  <label className="flex items-center gap-2 text-sm text-foreground mb-3 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={enableWordValidation}
                       onChange={(e) => setEnableWordValidation(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all"
+                      className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-2 focus:ring-ring transition-all"
                     />
-                    <span className="group-hover:text-slate-200 transition-colors">Validate words with dictionary (removes spelling errors)</span>
+                    <span className="group-hover:text-foreground transition-colors">Validate words with dictionary (removes spelling errors)</span>
                   </label>
                   <label className="block">
                     <input
@@ -1539,7 +1539,7 @@ export default function Home() {
                     <Button
                       type="button"
                       onClick={() => document.getElementById('csv-import-input')?.click()}
-                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-semibold"
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-primary-foreground shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-semibold"
                       size="sm"
                     >
                       <Upload className="h-4 w-4 mr-2" />
@@ -1549,13 +1549,13 @@ export default function Home() {
                   
                   {/* Grid Size Selector - appears after CSV upload */}
                   {pendingCSV && (
-                    <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                      <label className="block text-xs font-semibold text-blue-300 mb-3">
+                    <div className="mt-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                      <label className="block text-xs font-semibold text-foreground mb-3">
                         Select Grid Size for Import
                       </label>
                       <div className="mb-3">
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">
-                          Grid Size: <span className="text-blue-400 font-bold">{csvGridSize}×{csvGridSize}</span>
+                        <label className="block text-xs font-semibold text-foreground mb-2">
+                          Grid Size: <span className="text-primary font-bold">{csvGridSize}×{csvGridSize}</span>
                         </label>
                         <input
                           type="range"
@@ -1564,14 +1564,14 @@ export default function Home() {
                           step="1"
                           value={csvGridSize}
                           onChange={(e) => setCsvGridSize(parseInt(e.target.value))}
-                          className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                         />
-                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                        <div className="flex justify-between text-xs text-foreground0 mt-2">
                           <span>5</span>
                           <span>15</span>
                           <span>30</span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           Max word length: {csvGridSize - 2} letters
                         </p>
                       </div>
@@ -1579,7 +1579,7 @@ export default function Home() {
                         <Button
                           type="button"
                           onClick={processCSVImport}
-                          className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-semibold"
+                          className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-primary-foreground shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-semibold"
                           size="sm"
                         >
                           Process Import
@@ -1588,13 +1588,13 @@ export default function Home() {
                           type="button"
                           onClick={() => setPendingCSV(null)}
                           variant="outline"
-                          className="border-slate-600/50 hover:bg-slate-700/80 hover:border-slate-500 text-xs hover:scale-105 active:scale-95 transition-all duration-200"
+                          className="border-border/50 hover:bg-secondary/80 hover:border-border text-xs hover:scale-105 active:scale-95 transition-all duration-200"
                           size="sm"
                         >
                           Cancel
                         </Button>
                       </div>
-                      <p className="text-xs text-blue-200/80 mt-2">
+                      <p className="text-xs text-muted-foreground/80 mt-2">
                         File: {pendingCSV.fileName}
                       </p>
                     </div>
@@ -1606,25 +1606,25 @@ export default function Home() {
 
             {/* Sudoku Settings - Single collapsible section */}
             {puzzleType === 'sudoku' ? (
-              <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+              <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
                 <button
                   onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
                 >
-                  <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Sudoku Settings</h3>
-                  <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Sudoku Settings</h3>
+                  <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                 </button>
                 {isSettingsSectionOpen && (
-                  <div className="p-5 space-y-5 border-t border-slate-700/50">
+                  <div className="p-5 space-y-5 border-t border-border/50">
                     {/* Difficulty */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-2">
+                      <label className="block text-xs font-semibold text-foreground mb-2">
                         Difficulty
                       </label>
                       <select
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                        className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm shadow-sm"
+                        className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 transition-all duration-200 text-sm shadow-sm"
                       >
                         <option value="easy">Easy (36-45 clues)</option>
                         <option value="medium">Medium (30-35 clues)</option>
@@ -1639,7 +1639,7 @@ export default function Home() {
                         <Button
                           onClick={handleGeneratePuzzles}
                           disabled={isGeneratingPuzzle}
-                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-primary-foreground shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
                           size="sm"
                         >
                           {isGeneratingPuzzle 
@@ -1650,7 +1650,7 @@ export default function Home() {
                         {/* Puzzle List for Sudoku (Book Mode) - Simple numbered list */}
                         {bookSudokus.length > 0 && (
                           <div className="mt-4">
-                            <label className="block text-xs font-medium text-slate-400 mb-2">
+                            <label className="block text-xs font-medium text-muted-foreground mb-2">
                               Puzzles ({bookSudokus.length})
                             </label>
                             <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -1659,12 +1659,12 @@ export default function Home() {
                                 return (
                                   <div
                                     key={index}
-                                    className={`bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center justify-between group text-xs transition-all duration-200 border border-slate-700/30 cursor-pointer hover:bg-slate-700/80 hover:border-slate-600/50 hover:shadow-md ${
-                                      isSelected ? 'ring-2 ring-blue-500/50 bg-slate-700/80 shadow-lg shadow-blue-500/20' : ''
+                                    className={`bg-secondary/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center justify-between group text-xs transition-all duration-200 border border-border/30 cursor-pointer hover:bg-secondary/80 hover:border-border/50 hover:shadow-md ${
+                                      isSelected ? 'ring-2 ring-ring/50 bg-secondary/80 shadow-sm/20' : ''
                                     }`}
                                     onClick={() => setSelectedPuzzleIndex(index)}
                                   >
-                                    <span className="text-slate-300">
+                                    <span className="text-foreground">
                                       Puzzle {index + 1} ✓
                                     </span>
                                   </div>
@@ -1681,20 +1681,20 @@ export default function Home() {
             ) : (
               <>
                 {/* Content Section - Open by default */}
-                <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
                   <button
                     onClick={() => setIsContentSectionOpen(!isContentSectionOpen)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
                   >
-                    <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Content</h3>
-                    <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isContentSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Content</h3>
+                    <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isContentSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                   </button>
                   {isContentSectionOpen && (
-                    <div className="p-5 space-y-5 border-t border-slate-700/50">
+                    <div className="p-5 space-y-5 border-t border-border/50">
                   {/* Main Theme - Only for Word Search */}
                   {puzzleType === 'word-search' && (
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-2">
+                      <label className="block text-xs font-medium text-muted-foreground mb-2">
                         Main Theme
                       </label>
                       <div className="flex gap-2">
@@ -1703,14 +1703,14 @@ export default function Home() {
                           value={theme}
                           onChange={(e) => setTheme(e.target.value)}
                           placeholder="e.g., Winter, Gardening..."
-                          className="flex-1 px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                          className="flex-1 px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
                           disabled={isGeneratingStructure}
                         />
                         {mode === 'book' ? (
                           <Button
                             onClick={handleGenerateStructure}
                             disabled={isGeneratingStructure || !theme.trim()}
-                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
+                            className="bg-primary text-primary-foreground hover:opacity-90 text-primary-foreground shadow-sm hover:scale-105 active:scale-95 transition-all duration-200"
                             size="sm"
                           >
                             <Search className="h-4 w-4" />
@@ -1719,7 +1719,7 @@ export default function Home() {
                           <Button
                             onClick={handleGenerateWords}
                             disabled={isGeneratingWords || !theme.trim()}
-                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200"
+                            className="bg-primary text-primary-foreground hover:opacity-90 text-primary-foreground shadow-sm hover:scale-105 active:scale-95 transition-all duration-200"
                             size="sm"
                           >
                             <Search className="h-4 w-4" />
@@ -1733,16 +1733,16 @@ export default function Home() {
                   {/* Word Validation - Only for Word Search */}
                   {puzzleType === 'word-search' && (
                     <div>
-                      <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
                         <input
                           type="checkbox"
                           checked={enableWordValidation}
                           onChange={(e) => setEnableWordValidation(e.target.checked)}
-                          className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                          className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-2 focus:ring-ring"
                         />
                         <span>Word Validation</span>
                       </label>
-                      <p className="text-xs text-slate-400 mt-1 ml-6">
+                      <p className="text-xs text-muted-foreground mt-1 ml-6">
                         Check words against dictionary API (removes spelling errors)
                       </p>
                     </div>
@@ -1753,10 +1753,10 @@ export default function Home() {
                   {mode === 'book' && puzzleType === 'word-search' && bookStructure && bookStructure.chapters.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <label className="block text-xs font-medium text-slate-400">
+                        <label className="block text-xs font-medium text-muted-foreground">
                           Chapters ({bookStructure.chapters.length})
                         </label>
-                        <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-slate-600/50 hover:bg-slate-800/80 hover:border-slate-500 px-3 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm">
+                        <Button onClick={handleAddBlankPage} size="sm" variant="outline" className="h-7 text-xs border-border/50 hover:bg-secondary/80 hover:border-border px-3 hover:scale-105 active:scale-95 transition-all duration-200 shadow-sm">
                           <FilePlus className="h-3 w-3 mr-1" /> Add Page
                         </Button>
                       </div>
@@ -1767,7 +1767,7 @@ export default function Home() {
                           return (
                             <div key={index}>
                               <div
-                                className={`bg-slate-800/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center justify-between group text-xs transition-all duration-200 ${chapter.isBlank ? 'border border-dashed border-slate-600/50' : 'border border-slate-700/30'} ${isSelected && hasPuzzle ? 'ring-2 ring-blue-500/50 bg-slate-700/80 shadow-lg shadow-blue-500/20' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-slate-700/80 hover:border-slate-600/50 hover:shadow-md' : ''}`}
+                                className={`bg-secondary/80 backdrop-blur-sm rounded-lg px-3 py-2 flex items-center justify-between group text-xs transition-all duration-200 ${chapter.isBlank ? 'border border-dashed border-border/50' : 'border border-border/30'} ${isSelected && hasPuzzle ? 'ring-2 ring-ring/50 bg-secondary/80 shadow-sm/20' : ''} ${hasPuzzle && !chapter.isBlank ? 'cursor-pointer hover:bg-secondary/80 hover:border-border/50 hover:shadow-md' : ''}`}
                                 onClick={() => {
                                   if (hasPuzzle && !chapter.isBlank) {
                                     setSelectedPuzzleIndex(index);
@@ -1776,9 +1776,9 @@ export default function Home() {
                               >
                                 <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
                                   {chapter.isBlank ? (
-                                    <File className="h-3 w-3 text-slate-500 shrink-0" />
+                                    <File className="h-3 w-3 text-foreground0 shrink-0" />
                                   ) : (
-                                    <span className="text-slate-500 w-3 shrink-0">{index + 1}.</span>
+                                    <span className="text-foreground0 w-3 shrink-0">{index + 1}.</span>
                                   )}
                                   {editingChapterIndex === index ? (
                                     <input 
@@ -1792,17 +1792,17 @@ export default function Home() {
                                           setEditingTitle('');
                                         }
                                       }}
-                                      className="flex-1 px-1.5 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-100"
+                                      className="flex-1 px-1.5 py-0.5 bg-secondary border border-border rounded text-xs text-foreground"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   ) : (
-                                    <span className={`truncate ${chapter.isBlank ? 'text-slate-500 italic' : 'text-slate-300'}`}>
+                                    <span className={`truncate ${chapter.isBlank ? 'text-foreground0 italic' : 'text-foreground'}`}>
                                       {chapter.isBlank ? chapter.title : (
                                         <>
                                           {chapter.title}
                                           {puzzleType === 'word-search' && ` (${chapter.words.length})`}
                                           {puzzleType === 'word-search' && chapter.words.length > csvWordsPerPuzzle && (
-                                            <span className="ml-1.5 px-1.5 py-0.5 bg-blue-500/20 text-blue-300 text-[10px] rounded border border-blue-500/30" title={`All ${chapter.words.length} words will be in one puzzle`}>
+                                            <span className="ml-1.5 px-1.5 py-0.5 bg-primary/20 text-foreground text-[10px] rounded border border-primary/30" title={`All ${chapter.words.length} words will be in one puzzle`}>
                                               All in one
                                             </span>
                                           )}
@@ -1813,16 +1813,16 @@ export default function Home() {
                                   )}
                                 </div>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move up"><ChevronUp className="h-3 w-3" /></button>
-                                  <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move down"><ChevronDown className="h-3 w-3" /></button>
-                                  {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1.5 rounded-md text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200 hover:scale-110" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
-                                  {!chapter.isBlank && puzzleType === 'word-search' && <button onClick={() => handleEditWords(index)} className="p-1.5 rounded-md text-slate-400 hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110" title="Edit words"><Search className="h-3 w-3" /></button>}
-                                  <button onClick={() => handleDeleteChapter(index)} className="p-1.5 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:scale-110" title="Delete"><Trash2 className="h-3 w-3" /></button>
+                                  <button onClick={() => moveChapter(index, 'up')} disabled={index === 0} className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move up"><ChevronUp className="h-3 w-3" /></button>
+                                  <button onClick={() => moveChapter(index, 'down')} disabled={index === bookStructure.chapters.length-1} className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 disabled:opacity-30 transition-all duration-200 hover:scale-110" title="Move down"><ChevronDown className="h-3 w-3" /></button>
+                                  {!chapter.isBlank && <button onClick={() => handleEditChapter(index)} className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-110" title="Edit title"><Edit2 className="h-3 w-3" /></button>}
+                                  {!chapter.isBlank && puzzleType === 'word-search' && <button onClick={() => handleEditWords(index)} className="p-1.5 rounded-md text-muted-foreground hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110" title="Edit words"><Search className="h-3 w-3" /></button>}
+                                  <button onClick={() => handleDeleteChapter(index)} className="p-1.5 rounded-md text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 hover:scale-110" title="Delete"><Trash2 className="h-3 w-3" /></button>
                                 </div>
                               </div>
                               {editingWordsIndex === index && !chapter.isBlank && (
-                                <div className="mt-1.5 p-2 bg-slate-800 rounded border border-slate-700">
-                                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                                <div className="mt-1.5 p-2 bg-secondary rounded border border-border">
+                                  <label className="block text-xs font-medium text-foreground mb-1.5">
                                     Edit Words for "{chapter.title}"
                                   </label>
                                   <textarea
@@ -1831,11 +1831,11 @@ export default function Home() {
                                     onChange={e => setEditingWords(e.target.value)}
                                     placeholder="WORD1, WORD2, WORD3..."
                                     rows={3}
-                                    className="w-full px-3 py-2 bg-slate-700/80 border border-slate-600/50 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-200 resize-none shadow-sm"
+                                    className="w-full px-3 py-2 bg-secondary/80 border border-border/50 rounded-lg text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-200 resize-none shadow-sm"
                                   />
                                   <div className="flex gap-2 mt-2">
-                                    <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-xs font-semibold">Save</Button>
-                                    <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-slate-600/50 hover:bg-slate-700/80 hover:border-slate-500 text-xs hover:scale-105 active:scale-95 transition-all duration-200">Cancel</Button>
+                                    <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-primary-foreground shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-xs font-semibold">Save</Button>
+                                    <Button onClick={handleCancelEditWords} size="sm" variant="outline" className="border-border/50 hover:bg-secondary/80 hover:border-border text-xs hover:scale-105 active:scale-95 transition-all duration-200">Cancel</Button>
                                   </div>
                                 </div>
                               )}
@@ -1844,19 +1844,19 @@ export default function Home() {
                         })}
                       </div>
                       <div className="mt-3 space-y-2">
-                        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer group">
+                        <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer group">
                           <input
                             type="checkbox"
                             checked={addBlankPagesBetweenChapters}
                             onChange={(e) => setAddBlankPagesBetweenChapters(e.target.checked)}
-                            className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-600 focus:ring-2 focus:ring-blue-500 transition-all"
+                            className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-2 focus:ring-ring transition-all"
                           />
-                          <span className="group-hover:text-slate-200 transition-colors">Add blank pages between chapters</span>
+                          <span className="group-hover:text-foreground transition-colors">Add blank pages between chapters</span>
                         </label>
                         <Button
                           onClick={handleGeneratePuzzles}
                           disabled={isGeneratingPuzzle || (puzzleType === 'word-search' && (!bookStructure || bookStructure.chapters.length === 0))}
-                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-primary-foreground shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-sm font-semibold"
                           size="sm"
                         >
                           {isGeneratingPuzzle 
@@ -1872,7 +1872,7 @@ export default function Home() {
                   {mode === 'single' && puzzleType === 'word-search' && (
                     <>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                        <label className="block text-xs font-semibold text-foreground mb-2">
                           Number of Words
                         </label>
                         <input
@@ -1881,11 +1881,11 @@ export default function Home() {
                           onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
                           min={5}
                           max={50}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                          className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                        <label className="block text-xs font-semibold text-foreground mb-2">
                           Custom Words (Optional)
                         </label>
                         <textarea
@@ -1893,12 +1893,12 @@ export default function Home() {
                           onChange={(e) => setCustomWords(e.target.value)}
                           placeholder="snowflake, icicle, blizzard..."
                           rows={3}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 resize-none text-sm shadow-sm"
+                          className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 resize-none text-sm shadow-sm"
                         />
                       </div>
                       {generatedWords.length > 0 && (
                         <div>
-                          <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          <label className="block text-xs font-semibold text-foreground mb-2">
                             Generated Words (Editable)
                           </label>
                           <textarea
@@ -1924,7 +1924,7 @@ export default function Home() {
                             }}
                             placeholder="WORD1, WORD2, WORD3..."
                             rows={4}
-                            className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 resize-none text-sm shadow-sm"
+                            className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 resize-none text-sm shadow-sm"
                           />
                         </div>
                       )}
@@ -1937,20 +1937,20 @@ export default function Home() {
             {/* Settings Section - Only for Word Search */}
             {puzzleType === 'word-search' && (
               <>
-                <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
                   <button
                     onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
                   >
-                    <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Settings</h3>
-                    <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Settings</h3>
+                    <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                   </button>
                   {isSettingsSectionOpen && (
-                    <div className="p-5 space-y-5 border-t border-slate-700/50">
+                    <div className="p-5 space-y-5 border-t border-border/50">
                       {/* Grid Size - Slider */}
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-3">
-                          Grid Size: <span className="text-blue-400 font-bold">{gridSize}×{gridSize}</span>
+                        <label className="block text-xs font-semibold text-foreground mb-3">
+                          Grid Size: <span className="text-primary font-bold">{gridSize}×{gridSize}</span>
                         </label>
                         <input
                           type="range"
@@ -1959,9 +1959,9 @@ export default function Home() {
                           step="1"
                           value={gridSize}
                           onChange={(e) => setGridSize(parseInt(e.target.value))}
-                          className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
                         />
-                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                        <div className="flex justify-between text-xs text-foreground0 mt-2">
                           <span>5</span>
                           <span>15</span>
                           <span>30</span>
@@ -1970,13 +1970,13 @@ export default function Home() {
                       
                       {/* Difficulty */}
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">
+                        <label className="block text-xs font-semibold text-foreground mb-2">
                           Difficulty
                         </label>
                         <select
                           value={difficulty}
                           onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-sm shadow-sm"
+                          className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 transition-all duration-200 text-sm shadow-sm"
                         >
                           <option value="easy">Easy</option>
                           <option value="medium">Medium</option>
@@ -1989,18 +1989,18 @@ export default function Home() {
 
                 {/* Book Config Section - Only for Word Search Book Mode */}
                 {mode === 'book' && (
-                  <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+                  <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
                     <button
                       onClick={() => setIsBookConfigSectionOpen(!isBookConfigSectionOpen)}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-t-xl group"
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
                     >
-                      <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">Book Config</h3>
-                      <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isBookConfigSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                      <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Book Config</h3>
+                      <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isBookConfigSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                     </button>
                     {isBookConfigSectionOpen && (
-                      <div className="p-5 space-y-5 border-t border-slate-700/50">
+                      <div className="p-5 space-y-5 border-t border-border/50">
                         <div>
-                          <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          <label className="block text-xs font-semibold text-foreground mb-2">
                             Words per Puzzle
                           </label>
                           <input
@@ -2009,11 +2009,11 @@ export default function Home() {
                             onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
                             min={5}
                             max={30}
-                            className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                            className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-semibold text-slate-300 mb-2">
+                          <label className="block text-xs font-semibold text-foreground mb-2">
                             Number of Chapters
                           </label>
                           <input
@@ -2022,7 +2022,7 @@ export default function Home() {
                             onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
                             min={5}
                             max={100}
-                            className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
+                            className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
                           />
                         </div>
                       </div>
@@ -2050,7 +2050,7 @@ export default function Home() {
                   }
                 }}
                 disabled={puzzleType === 'word-search' && isGeneratingPuzzle && (generatedWords.length === 0 && !customWords.trim())}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 font-bold"
+                className="w-full bg-primary text-primary-foreground hover:opacity-90 text-primary-foreground shadow-sm hover:scale-105 active:scale-95 transition-all duration-200 font-bold"
                 size="lg"
               >
                 {isGeneratingPuzzle ? 'Generating...' : 'Generate Puzzle'}
@@ -2074,11 +2074,11 @@ export default function Home() {
                       : 'Sudoku Puzzle'}
                   />
                 ) : (
-                  <div className="h-full flex items-center justify-center bg-slate-900/50 rounded-lg border border-slate-700/50 text-slate-400">
+                  <div className="h-full flex items-center justify-center bg-card/50 rounded-lg border border-border/50 text-muted-foreground">
                     <div className="text-center">
-                      <Grid3x3 className="h-16 w-16 mx-auto mb-2 text-slate-500" />
-                      <p className="text-slate-400">No Sudoku puzzle generated yet</p>
-                      <p className="text-xs mt-1 text-slate-500">
+                      <Grid3x3 className="h-16 w-16 mx-auto mb-2 text-foreground0" />
+                      <p className="text-muted-foreground">No Sudoku puzzle generated yet</p>
+                      <p className="text-xs mt-1 text-foreground0">
                         {mode === 'single' 
                           ? 'Click "Generate Puzzle" to create a Sudoku'
                           : 'Generate book structure and click "Generate Pages" to create Sudoku puzzles'}
@@ -2088,9 +2088,9 @@ export default function Home() {
                 )
               ) : displayPuzzle ? (
                 'isBlank' in displayPuzzle ? (
-                  <div className="h-full flex items-center justify-center bg-slate-100 rounded-lg border border-slate-300 text-slate-400">
+                  <div className="h-full flex items-center justify-center bg-secondary rounded-lg border border-border text-muted-foreground">
                     <div className="text-center">
-                      <File className="h-16 w-16 mx-auto mb-2 text-slate-300" />
+                      <File className="h-16 w-16 mx-auto mb-2 text-foreground" />
                       <p>Blank Page</p>
                       <p className="text-xs mt-1">(Will be empty in PDF)</p>
                     </div>
@@ -2106,16 +2106,16 @@ export default function Home() {
                   />
                 )
               ) : mode === 'book' && bookStructure ? (
-                <div className="h-full flex items-center justify-center bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-xl border border-slate-700/50">
+                <div className="h-full flex items-center justify-center bg-card/80 backdrop-blur-sm rounded-xl shadow-xl border border-border/50">
                   <div className="text-center">
-                    <div className="bg-blue-500/10 p-4 rounded-2xl inline-block mb-4 ring-2 ring-blue-500/20">
-                      <BookOpen className="h-16 w-16 mx-auto text-blue-400 drop-shadow-lg" />
+                    <div className="bg-primary/10 p-4 rounded-2xl inline-block mb-4 ring-2 ring-ring/20">
+                      <BookOpen className="h-16 w-16 mx-auto text-primary drop-shadow-lg" />
                     </div>
-                    <p className="text-slate-300 font-medium">Click "Generate Pages" to create puzzles for all chapters</p>
+                    <p className="text-foreground font-medium">Click "Generate Pages" to create puzzles for all chapters</p>
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-xl border border-slate-700/50 p-6">
+                <div className="h-full flex items-center justify-center bg-card/80 backdrop-blur-sm rounded-xl shadow-xl border border-border/50 p-6">
                   <div className="w-full max-w-2xl">
                     <InstructionsPanel mode={mode} />
                   </div>
@@ -2168,36 +2168,36 @@ export default function Home() {
       {/* Progress Modal Overlay - Centered with blurred backdrop */}
       {isGeneratingPuzzle && mode === 'book' && generationProgress.total > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-slate-700/50 shadow-2xl min-w-[400px] max-w-[500px] animate-in zoom-in-95 duration-300">
+          <div className="bg-card rounded-2xl p-8 border border-border shadow-2xl min-w-[400px] max-w-[500px] animate-in zoom-in-95 duration-300">
             <div className="space-y-5">
               <div className="text-center">
-                <div className="bg-blue-500/10 p-3 rounded-2xl inline-block mb-3 ring-2 ring-blue-500/20">
-                  <Sparkles className="h-8 w-8 text-blue-400 animate-pulse" />
+                <div className="bg-primary/10 p-3 rounded-2xl inline-block mb-3 ring-2 ring-ring/20">
+                  <Sparkles className="h-8 w-8 text-primary animate-pulse" />
                 </div>
-                <h3 className="text-xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent mb-2">
+                <h3 className="text-xl font-extrabold text-foreground tracking-tight mb-2">
                   Generating Puzzles...
                 </h3>
-                <p className="text-sm text-slate-400 font-medium">
+                <p className="text-sm text-muted-foreground font-medium">
                   {bookStructure?.chapters[generationProgress.current - 1]?.title || `Puzzle ${generationProgress.current}`}
                 </p>
               </div>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-300">
+                  <span className="text-sm font-bold text-foreground">
                     Progress
                   </span>
-                  <span className="text-sm text-slate-300 font-bold bg-blue-500/20 px-3 py-1 rounded-full">
+                  <span className="text-sm text-foreground font-bold bg-primary/20 px-3 py-1 rounded-full">
                     {Math.round((generationProgress.current / generationProgress.total) * 100)}%
                   </span>
                 </div>
-                <div className="w-full bg-slate-800/50 rounded-full h-5 overflow-hidden shadow-inner">
+                <div className="w-full bg-secondary/50 rounded-full h-5 overflow-hidden shadow-inner">
                   <div 
                     className="bg-gradient-to-r from-green-500 via-green-600 to-green-500 h-5 rounded-full transition-all duration-300 ease-out shadow-lg shadow-green-500/30"
                     style={{ width: `${Math.min((generationProgress.current / generationProgress.total) * 100, 100)}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-center text-xs text-slate-400 font-medium">
+                <div className="flex items-center justify-center text-xs text-muted-foreground font-medium">
                   <span>
                     {generationProgress.current} of {generationProgress.total} puzzles
                   </span>

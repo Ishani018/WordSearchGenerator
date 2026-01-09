@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
         return (
-          <html lang="en" className="dark">
+          <html lang="en">
             <head>
               {/* Load Google Fonts for PDF font preview in dropdown */}
               <link rel="preconnect" href="https://fonts.googleapis.com" />
