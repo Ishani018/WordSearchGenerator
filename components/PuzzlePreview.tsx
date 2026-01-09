@@ -163,7 +163,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         {/* Grid Area - Physical Paper Effect */}
         <div 
           ref={gridRef}
-          className="flex-1 flex items-center justify-center overflow-auto p-8"
+          className="flex-1 flex items-center justify-center overflow-auto p-8 rounded-xl"
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
         >

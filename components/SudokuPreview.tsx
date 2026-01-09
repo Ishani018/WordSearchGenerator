@@ -370,7 +370,7 @@ export default function SudokuPreview({ puzzle, title = 'Sudoku Puzzle' }: Sudok
 
       <div className="flex-1 flex gap-6 min-h-0">
         {/* Main Grid Area */}
-        <div className="flex-1 flex flex-col items-center justify-center bg-background/50 rounded-xl border border-border/50 p-4">
+        <div className="flex-1 flex flex-col items-center justify-center rounded-xl border border-border/50 p-4">
           
           {/* Status Bar */}
           <div className="w-full max-w-md flex items-center justify-between mb-4 text-sm">

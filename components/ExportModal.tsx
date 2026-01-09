@@ -96,48 +96,48 @@ export default function ExportModal({
       onClick={onClose}
     >
       <div
-        className="relative w-[90vw] max-w-4xl max-h-[90vh] bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl flex flex-col border border-slate-700/50 animate-in zoom-in-95 duration-300"
+        className="relative w-[90vw] max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-700/50 bg-gradient-to-r from-slate-900/50 to-slate-800/50">
-          <h2 className="text-xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-xl font-extrabold text-black tracking-tight">
             Export / Download
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-800/80 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
+            className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
             aria-label="Close"
           >
-            <X className="h-5 w-5 text-slate-400 hover:text-slate-200 transition-colors" />
+            <X className="h-5 w-5 text-gray-600 hover:text-black transition-colors" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-white">
           {/* Book Title and KDP Tools (Book Mode Only) */}
           {mode === 'book' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-200 mb-2">Book Title</label>
+                <label className="block text-sm font-bold text-black mb-2">Book Title</label>
                 <input
                   type="text"
                   value={bookStructure?.bookTitle || ''}
                   onChange={(e) => onBookTitleChange?.(e.target.value)}
                   placeholder="Enter book title"
-                  className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 shadow-sm"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:bg-gray-50 transition-all duration-200 shadow-sm"
                 />
               </div>
 
               {/* KDP Marketing Tools */}
               {bookStructure && bookStructure.chapters.length > 0 && (
-                <div className="bg-slate-800/80 backdrop-blur-sm rounded-xl p-5 border border-slate-700/50 shadow-lg overflow-hidden">
+                <div className="bg-gray-50 backdrop-blur-sm rounded-xl p-5 border border-gray-200 shadow-lg overflow-hidden">
                   <button
                     onClick={() => setIsKdpSectionOpen(!isKdpSectionOpen)}
                     className="w-full flex items-center justify-between mb-3 group"
                   >
-                    <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">KDP Marketing Tools</h3>
-                    <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isKdpSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+                    <h3 className="text-sm font-bold text-black group-hover:text-primary transition-colors">KDP Marketing Tools</h3>
+                    <ChevronUp className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isKdpSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                   </button>
                   
                   {isKdpSectionOpen && (
@@ -177,19 +177,19 @@ export default function ExportModal({
 
                       {/* Generated Titles */}
                       {kdpTitles && kdpTitles.length > 0 && (
-                        <div className="p-3 bg-slate-700/80 backdrop-blur-sm rounded-lg border border-slate-600/50 shadow-lg">
+                        <div className="p-3 bg-gray-50 backdrop-blur-sm rounded-lg border border-gray-200 shadow-lg">
                           <div className="flex items-center justify-between mb-2">
-                            <label className="text-xs font-bold text-slate-200">Titles:</label>
+                            <label className="text-xs font-bold text-black">Titles:</label>
                             <button
                               onClick={() => {
                                 const allTitles = kdpTitles.join('\n');
                                 onCopyToClipboard?.(allTitles, 'titles');
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200 hover:scale-110"
+                              className="p-1.5 rounded-lg text-gray-600 hover:text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-110"
                               title="Copy all titles"
                             >
                               {copiedText === 'titles' ? (
-                                <Check className="h-3.5 w-3.5 text-green-400" />
+                                <Check className="h-3.5 w-3.5 text-green-500" />
                               ) : (
                                 <Copy className="h-3.5 w-3.5" />
                               )}
@@ -197,9 +197,9 @@ export default function ExportModal({
                           </div>
                           <div className="space-y-1.5 max-h-24 overflow-y-auto">
                             {kdpTitles.map((title, index) => (
-                              <div key={index} className="flex items-start gap-2 p-2 bg-slate-600/80 rounded-lg hover:bg-slate-500/80 transition-all duration-200 text-xs border border-slate-500/30">
-                                <span className="text-slate-400 mt-0.5">{index + 1}.</span>
-                                <span className="flex-1 text-slate-200">{title}</span>
+                              <div key={index} className="flex items-start gap-2 p-2 bg-white rounded-lg hover:bg-gray-100 transition-all duration-200 text-xs border border-gray-200">
+                                <span className="text-gray-600 mt-0.5">{index + 1}.</span>
+                                <span className="flex-1 text-black">{title}</span>
                                 <button
                                   onClick={() => {
                                     onCopyToClipboard?.(title, `title-${index}`);
@@ -207,11 +207,11 @@ export default function ExportModal({
                                       onBookTitleChange?.(title);
                                     }
                                   }}
-                                  className="p-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0"
+                                  className="p-0.5 text-gray-600 hover:text-primary transition-colors shrink-0"
                                   title="Copy and use as book title"
                                 >
                                   {copiedText === `title-${index}` ? (
-                                    <Check className="h-2.5 w-2.5 text-green-400" />
+                                    <Check className="h-2.5 w-2.5 text-green-500" />
                                   ) : (
                                     <Copy className="h-2.5 w-2.5" />
                                   )}
@@ -224,22 +224,22 @@ export default function ExportModal({
 
                       {/* Generated Description */}
                       {kdpDescription && (
-                        <div className="p-3 bg-slate-700/80 backdrop-blur-sm rounded-lg border border-slate-600/50 shadow-lg">
+                        <div className="p-3 bg-gray-50 backdrop-blur-sm rounded-lg border border-gray-200 shadow-lg">
                           <div className="flex items-center justify-between mb-2">
-                            <label className="text-xs font-bold text-slate-200">Description:</label>
+                            <label className="text-xs font-bold text-black">Description:</label>
                             <button
                               onClick={() => onCopyToClipboard?.(kdpDescription, 'description')}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200 hover:scale-110"
+                              className="p-1.5 rounded-lg text-gray-600 hover:text-primary hover:bg-primary/10 transition-all duration-200 hover:scale-110"
                               title="Copy description"
                             >
                               {copiedText === 'description' ? (
-                                <Check className="h-3.5 w-3.5 text-green-400" />
+                                <Check className="h-3.5 w-3.5 text-green-500" />
                               ) : (
                                 <Copy className="h-3.5 w-3.5" />
                               )}
                             </button>
                           </div>
-                          <p className="text-xs text-slate-300 whitespace-pre-wrap max-h-20 overflow-y-auto leading-relaxed">{kdpDescription}</p>
+                          <p className="text-xs text-black whitespace-pre-wrap max-h-20 overflow-y-auto leading-relaxed">{kdpDescription}</p>
                         </div>
                       )}
                     </div>
@@ -250,25 +250,25 @@ export default function ExportModal({
           )}
 
           {/* PDF Settings */}
-          <div className="bg-slate-800/80 backdrop-blur-sm rounded-xl p-5 border border-slate-700/50 shadow-lg overflow-hidden">
+          <div className="bg-gray-50 backdrop-blur-sm rounded-xl p-5 border border-gray-200 shadow-lg overflow-hidden">
             <button
               onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
               className="w-full flex items-center justify-between mb-3 group"
             >
-              <h3 className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">PDF Settings</h3>
-              <ChevronUp className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
+              <h3 className="text-sm font-bold text-black group-hover:text-primary transition-colors">PDF Settings</h3>
+              <ChevronUp className={`h-4 w-4 text-gray-600 transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
             </button>
 
             {isSettingsSectionOpen && (
-              <div className="space-y-5 border-t border-slate-700/50 pt-5">
+              <div className="space-y-5 border-t border-gray-200 pt-5">
                 {/* Font and Page Size */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Font</label>
+                    <label className="block text-xs text-gray-600 mb-1">Font</label>
                     <select
                       value={selectedFont}
                       onChange={(e) => setSelectedFont(e.target.value)}
-                      className="w-full px-4 py-2.5 text-sm bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm"
+                      className="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 shadow-sm"
                     >
                       {AVAILABLE_FONTS.map((font) => {
                         let fontFamily = 'inherit';
@@ -302,10 +302,10 @@ export default function ExportModal({
                   </div>
                   
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Page Size</label>
+                    <label className="block text-xs text-gray-600 mb-1">Page Size</label>
                     <div className="flex gap-1.5">
                       <select 
-                        className="flex-1 px-4 py-2.5 text-sm bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm"
+                        className="flex-1 px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 shadow-sm"
                         onChange={(e) => {
                           if (e.target.value === 'custom') {
                             setIsCustomSize(true);
@@ -324,7 +324,7 @@ export default function ExportModal({
                         <div className="flex gap-1 items-center">
                           <input 
                             type="number" 
-                            className="w-16 px-2 py-1.5 bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm" 
+                            className="w-16 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-black text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 shadow-sm" 
                             placeholder="W" 
                             step="0.1"
                             value={customPageSize.width}
@@ -334,10 +334,10 @@ export default function ExportModal({
                               setPageSize({ ...pageSize, width: w });
                             }}
                           />
-                          <span className="text-slate-500 text-xs font-bold">×</span>
+                          <span className="text-gray-600 text-xs font-bold">×</span>
                           <input 
                             type="number" 
-                            className="w-16 px-2 py-1.5 bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm" 
+                            className="w-16 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-black text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 shadow-sm" 
                             placeholder="H" 
                             step="0.1"
                             value={customPageSize.height}
@@ -356,8 +356,8 @@ export default function ExportModal({
                 {/* Font Sizes */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-3">
-                      Grid Size: <span className="text-blue-400 font-bold">{fontSize}pt</span>
+                    <label className="block text-xs font-semibold text-black mb-3">
+                      Grid Size: <span className="text-primary font-bold">{fontSize}pt</span>
                     </label>
                     <input
                       type="range"
@@ -366,17 +366,20 @@ export default function ExportModal({
                       step="1"
                       value={fontSize}
                       onChange={(e) => setFontSize(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-2.5 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/70 rounded-lg appearance-none cursor-pointer slider-custom"
+                      style={{
+                        background: `linear-gradient(to right, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0.5) ${((fontSize - 4) / 16) * 100}%, hsl(var(--secondary)) ${((fontSize - 4) / 16) * 100}%, hsl(var(--secondary)) 100%)`
+                      }}
                     />
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
                       <span>4</span>
                       <span>12</span>
                       <span>20</span>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-3">
-                      Title Size: <span className="text-blue-400 font-bold">{headingSize}pt</span>
+                    <label className="block text-xs font-semibold text-black mb-3">
+                      Title Size: <span className="text-primary font-bold">{headingSize}pt</span>
                     </label>
                     <input
                       type="range"
@@ -385,9 +388,12 @@ export default function ExportModal({
                       step="1"
                       value={headingSize}
                       onChange={(e) => setHeadingSize(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-2.5 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/70 rounded-lg appearance-none cursor-pointer slider-custom"
+                      style={{
+                        background: `linear-gradient(to right, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0.5) ${((headingSize - 10) / 14) * 100}%, hsl(var(--secondary)) ${((headingSize - 10) / 14) * 100}%, hsl(var(--secondary)) 100%)`
+                      }}
                     />
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
                       <span>10</span>
                       <span>16</span>
                       <span>24</span>
@@ -396,8 +402,8 @@ export default function ExportModal({
 
                   {/* Word List Font Size */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-3">
-                      Word List Size: <span className="text-blue-400 font-bold">{wordListFontSize}pt</span>
+                    <label className="block text-xs font-semibold text-black mb-3">
+                      Word List Size: <span className="text-primary font-bold">{wordListFontSize}pt</span>
                     </label>
                     <input
                       type="range"
@@ -406,9 +412,12 @@ export default function ExportModal({
                       step="1"
                       value={wordListFontSize}
                       onChange={(e) => setWordListFontSize(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-2.5 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/70 rounded-lg appearance-none cursor-pointer slider-custom"
+                      style={{
+                        background: `linear-gradient(to right, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0.5) ${((wordListFontSize - 6) / 12) * 100}%, hsl(var(--secondary)) ${((wordListFontSize - 6) / 12) * 100}%, hsl(var(--secondary)) 100%)`
+                      }}
                     />
-                    <div className="flex justify-between text-xs text-slate-500 mt-2">
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
                       <span>6</span>
                       <span>11</span>
                       <span>18</span>
@@ -425,29 +434,29 @@ export default function ExportModal({
                           type="checkbox"
                           checked={includeTitlePage}
                           onChange={(e) => setIncludeTitlePage(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-slate-700/80 border-slate-600/50 rounded focus:ring-2 focus:ring-blue-500 transition-all"
+                          className="w-4 h-4 text-primary bg-gray-50 border-gray-200 rounded focus:ring-2 focus:ring-primary transition-all"
                         />
-                        <span className="text-xs text-slate-300 group-hover:text-slate-200 transition-colors font-medium">Title Page</span>
+                        <span className="text-xs text-black group-hover:text-primary transition-colors font-medium">Title Page</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer group">
                         <input
                           type="checkbox"
                           checked={includeBelongsToPage}
                           onChange={(e) => setIncludeBelongsToPage(e.target.checked)}
-                          className="w-4 h-4 text-blue-600 bg-slate-700/80 border-slate-600/50 rounded focus:ring-2 focus:ring-blue-500 transition-all"
+                          className="w-4 h-4 text-primary bg-gray-50 border-gray-200 rounded focus:ring-2 focus:ring-primary transition-all"
                         />
-                        <span className="text-xs text-slate-300 group-hover:text-slate-200 transition-colors font-medium">Belongs To Page</span>
+                        <span className="text-xs text-black group-hover:text-primary transition-colors font-medium">Belongs To Page</span>
                       </label>
                     </div>
                     {includeTitlePage && (
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">Copyright</label>
+                        <label className="block text-xs font-semibold text-black mb-2">Copyright</label>
                         <input
                           type="text"
                           value={copyrightText}
                           onChange={(e) => setCopyrightText(e.target.value)}
                           placeholder="Your Name or Company"
-                          className="w-1/2 px-4 py-2.5 text-sm bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-700 transition-all duration-200 shadow-sm"
+                          className="w-1/2 px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:bg-gray-50 transition-all duration-200 shadow-sm"
                         />
                       </div>
                     )}
@@ -455,15 +464,15 @@ export default function ExportModal({
                 )}
 
                 {/* Page Margins */}
-                <div className="space-y-3 pt-2 border-t border-slate-700">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">
+                <div className="space-y-3 pt-2 border-t border-gray-200">
+                  <label className="block text-xs font-medium text-gray-600 mb-2">
                     Page Margins (inches)
                   </label>
                   
                   <div className="grid grid-cols-2 gap-3">
                     {/* Inside Margin (Left) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-2">
+                      <label className="block text-xs font-semibold text-black mb-2">
                         Inside Margin (Left)
                       </label>
                       <input
@@ -476,14 +485,14 @@ export default function ExportModal({
                           const val = Math.max(0, Math.min(4, parseFloat(e.target.value) || 0));
                           setLocalMargins({ ...localMargins, left: val });
                         }}
-                        className="w-full px-4 py-2.5 text-sm bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-700 transition-all duration-200 shadow-sm"
+                        className="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:bg-gray-50 transition-all duration-200 shadow-sm"
                       />
-                      <p className="text-xs text-slate-500 mt-1.5">Min: 0" | Max: 4"</p>
+                      <p className="text-xs text-gray-600 mt-1.5">Min: 0" | Max: 4"</p>
                     </div>
 
                     {/* Outside Margin (Right) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-2">
+                      <label className="block text-xs font-semibold text-black mb-2">
                         Outside Margin (Right)
                       </label>
                       <input
@@ -496,9 +505,9 @@ export default function ExportModal({
                           const val = Math.max(0, Math.min(4, parseFloat(e.target.value) || 0));
                           setLocalMargins({ ...localMargins, right: val });
                         }}
-                        className="w-full px-4 py-2.5 text-sm bg-slate-700/80 border border-slate-600/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-700 transition-all duration-200 shadow-sm"
+                        className="w-full px-4 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 focus:bg-gray-50 transition-all duration-200 shadow-sm"
                       />
-                      <p className="text-xs text-slate-500 mt-1.5">Min: 0" | Max: 4"</p>
+                      <p className="text-xs text-gray-600 mt-1.5">Min: 0" | Max: 4"</p>
                     </div>
                   </div>
                 </div>
@@ -539,7 +548,7 @@ export default function ExportModal({
           )}
 
           {!hasPuzzles && (
-            <div className="text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-gray-600">
               <p>Generate puzzles first to export</p>
             </div>
           )}

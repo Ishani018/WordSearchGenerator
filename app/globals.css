@@ -1,34 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  /* Modern Light Theme - Slate/Stone with Vibrant Indigo */
-  --background: 215 28% 98%;      /* Slate-50 - Very subtle off-white */
-  --foreground: 215 25% 7%;      /* Slate-950 */
+  /* Clean SaaS Theme */
+  --background: 220 13% 95%;      /* Soft light gray #F3F4F6 */
+  --foreground: 210 20% 15%;      /* Deep charcoal #1F2937 */
   
   --card: 0 0% 100%;             /* Pure White Cards */
-  --card-foreground: 215 25% 7%;
+  --card-foreground: 210 20% 15%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 215 25% 7%;
+  --popover-foreground: 210 20% 15%;
   
-  --primary: 250 90% 60%;        /* Vibrant Indigo - Hue 250, Saturation 90% */
+  --primary: 251 83% 58%;        /* Indigo/Royal Blue #4F46E5 */
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 215 20% 92%;      /* Slate-100 */
-  --secondary-foreground: 215 25% 7%;
+  --secondary: 220 13% 96%;      /* Slightly lighter than background */
+  --secondary-foreground: 210 20% 15%;
   
-  --muted: 215 20% 92%;
-  --muted-foreground: 215 15% 45%; /* Better contrast */
+  --muted: 220 13% 96%;
+  --muted-foreground: 210 10% 40%; /* Medium gray for muted text */
   
-  --accent: 215 20% 92%;
-  --accent-foreground: 215 25% 7%;
+  --accent: 220 13% 96%;
+  --accent-foreground: 210 20% 15%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 215 16% 84%;         /* Slate-200 */
-  --input: 215 20% 92%;          /* Filled input background */
-  --ring: 250 90% 60%;            /* Match primary */
+  --border: 220 13% 88%;         /* Light gray border */
+  --input: 220 13% 98%;          /* Very light gray for inputs */
+  --ring: 251 83% 58%;            /* Match primary */
   
   --radius: 1rem;                 /* Friendlier, rounder corners */
 }
@@ -104,16 +104,10 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Soft mesh gradient pattern - Creative workspace feel */
+/* Clean SaaS background pattern */
 .bg-mesh-pattern {
-  background: 
-    radial-gradient(at 0% 0%, hsl(250 90% 60% / 0.05) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsl(250 90% 60% / 0.03) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsl(250 90% 60% / 0.05) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, hsl(250 90% 60% / 0.03) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, hsl(215 28% 98%) 0px, transparent 100%);
+  background: hsl(220 13% 95%);
   background-size: 200% 200%;
-  animation: mesh-move 20s ease infinite;
 }
 
 .dark .bg-mesh-pattern {
@@ -133,4 +127,52 @@
   50% {
     background-position: 100% 100%;
   }
+}
+
+/* Custom Slider Styles */
+input[type="range"].slider-custom {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+input[type="range"].slider-custom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  cursor: pointer;
+  box-shadow: 0 2px 6px hsl(var(--primary) / 0.4);
+  border: 2px solid hsl(var(--background));
+  transition: all 0.2s ease;
+}
+
+input[type="range"].slider-custom::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px hsl(var(--primary) / 0.6);
+}
+
+input[type="range"].slider-custom::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  cursor: pointer;
+  box-shadow: 0 2px 6px hsl(var(--primary) / 0.4);
+  border: 2px solid hsl(var(--background));
+  transition: all 0.2s ease;
+}
+
+input[type="range"].slider-custom::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px hsl(var(--primary) / 0.6);
+}
+
+input[type="range"].slider-custom::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
 }

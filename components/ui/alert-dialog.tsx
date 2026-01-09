@@ -55,35 +55,35 @@ export function AlertDialog({
 
   const colors = {
     error: {
-      bg: 'bg-red-900/20',
-      border: 'border-red-700',
-      icon: 'text-red-400',
-      title: 'text-red-200',
-      text: 'text-red-100',
+      bg: 'bg-white',
+      border: 'border-red-300',
+      icon: 'text-red-600',
+      title: 'text-black',
+      text: 'text-black',
       button: 'bg-red-600 hover:bg-red-700',
     },
     warning: {
-      bg: 'bg-yellow-900/20',
-      border: 'border-yellow-700',
-      icon: 'text-yellow-400',
-      title: 'text-yellow-200',
-      text: 'text-yellow-100',
+      bg: 'bg-white',
+      border: 'border-yellow-300',
+      icon: 'text-yellow-600',
+      title: 'text-black',
+      text: 'text-black',
       button: 'bg-yellow-600 hover:bg-yellow-700',
     },
     success: {
-      bg: 'bg-green-900/20',
-      border: 'border-green-700',
-      icon: 'text-green-400',
-      title: 'text-green-200',
-      text: 'text-green-100',
+      bg: 'bg-white',
+      border: 'border-green-300',
+      icon: 'text-green-600',
+      title: 'text-black',
+      text: 'text-black',
       button: 'bg-green-600 hover:bg-green-700',
     },
     info: {
-      bg: 'bg-blue-900/20',
-      border: 'border-blue-700',
-      icon: 'text-blue-400',
-      title: 'text-blue-200',
-      text: 'text-blue-100',
+      bg: 'bg-white',
+      border: 'border-blue-300',
+      icon: 'text-blue-600',
+      title: 'text-black',
+      text: 'text-black',
       button: 'bg-blue-600 hover:bg-blue-700',
     },
   };
@@ -141,7 +141,7 @@ export function AlertDialog({
               <Button
                 variant="outline"
                 onClick={handleCancel}
-                className="border-slate-600 hover:bg-slate-800 text-slate-300"
+                className="border-gray-300 hover:bg-gray-100 text-black"
               >
                 {cancelText}
               </Button>
