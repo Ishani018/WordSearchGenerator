@@ -218,8 +218,6 @@ GROQ_MODEL=llama-3.3-70b-versatile
 # Passwords are validated server-side only - never exposed to browser JavaScript
 ADMIN_USERNAME=Admin
 ADMIN_PASSWORD=your_admin_password_here
-SAMPA_USERNAME=Sampa
-SAMPA_PASSWORD=your_sampa_password_here
 ```
 
 **Important Security Notes:**
