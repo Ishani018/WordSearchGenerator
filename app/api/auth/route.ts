@@ -20,6 +20,10 @@ const USERS = [
     username: getEnvVar('SAMPA_USERNAME', 'Sampa'),
     password: getEnvVar('SAMPA_PASSWORD', ''),
   },
+  {
+    username: getEnvVar('SUPER10_USERNAME', 'super10'),
+    password: getEnvVar('SUPER10_PASSWORD', ''),
+  },
 ];
 
 // Log available users on startup (without passwords)
@@ -71,6 +75,8 @@ export async function POST(request: NextRequest) {
         ADMIN_PASSWORD: !!process.env.ADMIN_PASSWORD,
         SAMPA_USERNAME: !!process.env.SAMPA_USERNAME,
         SAMPA_PASSWORD: !!process.env.SAMPA_PASSWORD,
+        USER3_USERNAME: !!process.env.USER3_USERNAME,
+        USER3_PASSWORD: !!process.env.USER3_PASSWORD,
       }
     });
 

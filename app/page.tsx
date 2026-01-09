@@ -50,9 +50,10 @@ export default function Home() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticatedState] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [showModeSelection, setShowModeSelection] = useState(false);
 
   // App state (declared before auth check)
-  const [puzzleType, setPuzzleType] = useState<PuzzleType>('word-search');
+  const [puzzleType, setPuzzleType] = useState<PuzzleType | null>(null);
   const [mode, setMode] = useState<Mode>('book');
   const [theme, setTheme] = useState('');
   const [customWords, setCustomWords] = useState('');
@@ -119,12 +120,20 @@ export default function Home() {
   const [isSettingsSectionOpen, setIsSettingsSectionOpen] = useState(false);
   const [isBookConfigSectionOpen, setIsBookConfigSectionOpen] = useState(false);
   
+  // Keep Sudoku Settings open by default
+  useEffect(() => {
+    if (puzzleType === 'sudoku') {
+      setIsSettingsSectionOpen(true);
+    }
+  }, [puzzleType]);
+  
   // Page Margin Settings (in inches, converted to percentage for display)
   const [margins, setMargins] = useState({ left: 0.5, right: 0.5, top: 0.5, bottom: 0.5 });
 
   // Authentication handlers
   const handleLogin = () => {
     setIsAuthenticatedState(true);
+    setShowModeSelection(true); // Show mode selection modal after login
   };
 
   const handleLogout = async () => {
@@ -1245,6 +1254,59 @@ export default function Home() {
     return <LoginForm onLogin={handleLogin} />;
   }
 
+  // Show mode selection modal if puzzle type not selected
+  if (showModeSelection || puzzleType === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 p-8 max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="bg-blue-500/10 p-4 rounded-xl inline-block mb-4 ring-2 ring-blue-500/20">
+              <BookOpen className="h-12 w-12 text-blue-400" />
+            </div>
+            <h2 className="text-3xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent mb-2">
+              Choose Your Mode
+            </h2>
+            <p className="text-slate-400 text-sm">
+              Select the type of puzzle you want to generate
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={() => {
+                setPuzzleType('word-search');
+                setShowModeSelection(false);
+                setPuzzle(null);
+                setSudokuPuzzle(null);
+                setBookPuzzles([]);
+                setBookSudokus([]);
+              }}
+              className="w-full p-6 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-xl text-white font-bold text-lg shadow-lg shadow-purple-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+            >
+              <Search className="h-6 w-6" />
+              Word Search
+            </button>
+
+            <button
+              onClick={() => {
+                setPuzzleType('sudoku');
+                setShowModeSelection(false);
+                setPuzzle(null);
+                setSudokuPuzzle(null);
+                setBookPuzzles([]);
+                setBookSudokus([]);
+              }}
+              className="w-full p-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-xl text-white font-bold text-lg shadow-lg shadow-blue-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3"
+            >
+              <Grid3x3 className="h-6 w-6" />
+              Sudoku
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Display logic: Handle blank pages in preview
   const displayPuzzle = mode === 'book' && puzzleType === 'word-search' && bookPuzzles.length > 0 
     ? (selectedPuzzleIndex !== null && selectedPuzzleIndex < bookPuzzles.length 
@@ -1275,44 +1337,8 @@ export default function Home() {
 +          </h1>
             </div>
             
-            {/* Center: Puzzle Type and Mode Toggle */}
+            {/* Center: Mode Toggle */}
             <div className="flex items-center gap-3">
-              {/* Puzzle Type Selector */}
-              <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
-                <button
-                  onClick={() => {
-                    setPuzzleType('word-search');
-                    setPuzzle(null);
-                    setSudokuPuzzle(null);
-                    setBookPuzzles([]);
-                    setBookSudokus([]);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                    puzzleType === 'word-search'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/30 scale-105'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                  }`}
-                >
-                  Word Search
-                </button>
-                <button
-                  onClick={() => {
-                    setPuzzleType('sudoku');
-                    setPuzzle(null);
-                    setSudokuPuzzle(null);
-                    setBookPuzzles([]);
-                    setBookSudokus([]);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-                    puzzleType === 'sudoku'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-500/30 scale-105'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                  }`}
-                >
-                  Sudoku
-                </button>
-              </div>
-              
               {/* Mode Toggle */}
               <div className="flex gap-2 bg-slate-800/80 backdrop-blur-sm rounded-xl p-1 shadow-inner border border-slate-700/50">
                 <button
@@ -1387,6 +1413,22 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-100px)]">
           {/* Left Sidebar - Controls */}
           <aside className="space-y-6 overflow-y-auto pr-2">
+            {/* Change Mode Button - Collapsible Side Menu */}
+            <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl shadow-lg border border-slate-700/50 overflow-hidden">
+              <button
+                onClick={() => setShowModeSelection(true)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/50 transition-all duration-200 rounded-xl group"
+              >
+                <div className="flex items-center gap-3">
+                  <Grid3x3 className="h-5 w-5 text-blue-400" />
+                  <span className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">
+                    Change Mode
+                  </span>
+                </div>
+                <ChevronUp className="h-4 w-4 text-slate-400" />
+              </button>
+            </div>
+
             {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
             {mode === 'book' && isGeneratingStructure && (
               <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-5 border border-blue-500/50 shadow-xl shadow-blue-500/20">
@@ -1599,23 +1641,6 @@ export default function Home() {
                         <option value="expert">Expert (17-24 clues)</option>
                       </select>
                     </div>
-                    
-                    {/* Number of Puzzles (Book Mode) */}
-                    {mode === 'book' && (
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-2">
-                          Number of Puzzles
-                        </label>
-                        <input
-                          type="number"
-                          value={numChapters}
-                          onChange={(e) => setNumChapters(parseInt(e.target.value) || 2)}
-                          min={1}
-                          max={100}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-slate-800 transition-all duration-200 text-sm shadow-sm"
-                        />
-                      </div>
-                    )}
                     
                     {/* Generate Button - Only for Book Mode (Single mode has button at bottom) */}
                     {mode === 'book' && (
