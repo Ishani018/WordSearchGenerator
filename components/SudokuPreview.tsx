@@ -346,276 +346,164 @@ export default function SudokuPreview({ puzzle, title = 'Sudoku Puzzle' }: Sudok
   const relatedCells = selectedCell ? getRelatedCells(selectedCell[0], selectedCell[1]) : new Set<string>();
 
   return (
-    <div className="w-full space-y-4 p-6">
-      {/* Top Toolbar - Clean Design */}
-      <div className="flex items-center justify-between bg-slate-900/80 backdrop-blur-sm rounded-xl p-3 border border-slate-700/50">
-        {/* Left: Game Actions */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleUndo}
-            disabled={history.length === 0}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800/50 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all duration-200 group relative"
-            title="Undo last move"
-          >
-            <Undo2 className="h-5 w-5" />
-            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-xs text-slate-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-              Undo
-            </span>
-          </button>
-          
-          <button
-            onClick={resetPuzzle}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all duration-200 group relative"
-            title="Restart puzzle"
-          >
-            <RotateCcw className="h-5 w-5" />
-            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-xs text-slate-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-              Restart
-            </span>
-          </button>
-        </div>
-
-        {/* Center: Difficulty Label */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-300 capitalize">{puzzle.difficulty}</span>
-        </div>
-
-        {/* Right: Timer and Settings */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/50">
-            <button
-              onClick={() => setIsTimerRunning(!isTimerRunning)}
-              className="text-slate-300 hover:text-white transition-colors"
-              title={isTimerRunning ? 'Pause timer' : 'Resume timer'}
-            >
-              {isTimerRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-            <span className="text-sm font-mono font-bold text-slate-100 ml-1">{formatTimer(timer)}</span>
-          </div>
-          
-          <button
-            onClick={getHint}
-            disabled={!selectedCell || grid[selectedCell[0]][selectedCell[1]] !== 0}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800/50 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all duration-200 group relative"
-            title="Get hint for selected cell"
-          >
-            <Lightbulb className="h-5 w-5" />
-            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-xs text-slate-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-              Hint
-            </span>
-          </button>
-          
-          <button
-            onClick={() => setShowSolution(!showSolution)}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all duration-200 group relative"
-            title={showSolution ? 'Hide solution' : 'Show solution'}
-          >
-            {showSolution ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-xs text-slate-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-50">
-              {showSolution ? 'Hide Solution' : 'Show Solution'}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Title and Notes Mode Toggle */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-100">{title}</h2>
+    <div className="w-full h-full flex flex-col bg-card/50 backdrop-blur-xl rounded-xl p-6 shadow-sm border border-border/50">
+      
+      {/* Header & Toolbar */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">{title}</h2>
         
-        {/* Prominent Notes Mode Toggle */}
-        <div className="flex items-center gap-3 bg-slate-900/80 backdrop-blur-sm rounded-xl p-2 border border-slate-700/50">
-          <span className={`text-sm font-medium transition-colors ${!isNotesMode ? 'text-slate-100' : 'text-slate-400'}`}>
-            Normal
-          </span>
-          <button
-            onClick={() => setIsNotesMode(!isNotesMode)}
-            className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
-              isNotesMode ? 'bg-blue-600' : 'bg-slate-700'
-            }`}
-            title={isNotesMode ? 'Switch to Normal mode' : 'Switch to Candidate mode'}
-          >
-            <span
-              className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
-                isNotesMode ? 'translate-x-7' : 'translate-x-0'
-              }`}
-            />
+        {/* Compact Toolbar */}
+        <div className="flex items-center gap-2 bg-secondary/50 p-1 rounded-lg border border-border/50">
+          <button onClick={handleUndo} disabled={history.length === 0} className="p-2 rounded-md hover:bg-background text-muted-foreground hover:text-foreground disabled:opacity-30 transition-all" title="Undo">
+            <Undo2 className="h-4 w-4" />
           </button>
-          <span className={`text-sm font-medium transition-colors flex items-center gap-1 ${isNotesMode ? 'text-blue-300' : 'text-slate-400'}`}>
-            <PenTool className="h-4 w-4" />
-            Candidate
-          </span>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={resetPuzzle} className="p-2 rounded-md hover:bg-background text-muted-foreground hover:text-destructive transition-all" title="Reset">
+            <RotateCcw className="h-4 w-4" />
+          </button>
+          <div className="w-px h-4 bg-border mx-1" />
+           <button onClick={() => setShowSolution(!showSolution)} className={`p-2 rounded-md transition-all ${showSolution ? 'bg-primary text-primary-foreground' : 'hover:bg-background text-muted-foreground hover:text-foreground'}`} title="Toggle Solution">
+            {showSolution ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
-      {/* Check Button */}
-      <div className="flex justify-center">
-        <button
-          onClick={checkPuzzle}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-200 font-semibold shadow-lg shadow-green-500/30"
-          title="Check puzzle for errors"
-        >
-          <Check className="h-5 w-5" />
-          Check Puzzle
-        </button>
-      </div>
-
-      {/* Sudoku Grid */}
-      <div className="flex justify-center">
-        {!displayGrid || displayGrid.length === 0 || !grid || grid.length === 0 ? (
-          <div className="text-slate-400 p-8">No puzzle loaded</div>
-        ) : (
-          <div className="inline-block border-2 border-slate-600 bg-slate-800 rounded-lg p-2">
-            <table className="border-collapse">
-              <tbody>
-                {displayGrid.map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.map((cell, colIndex) => {
-                    const isGiven = grid[rowIndex]?.[colIndex] !== undefined && grid[rowIndex][colIndex] !== 0;
-                    // Check if this cell is on a 3x3 box boundary (thicker border)
-                    const isBoxBorderTop = rowIndex % 3 === 0;
-                    const isBoxBorderLeft = colIndex % 3 === 0;
-                    const isBoxBorderBottom = (rowIndex + 1) % 3 === 0;
-                    const isBoxBorderRight = (colIndex + 1) % 3 === 0;
-                    const isSelected = selectedCell && selectedCell[0] === rowIndex && selectedCell[1] === colIndex;
-                    const cellKey = `${rowIndex}-${colIndex}`;
-                    const isValidated = validationState[cellKey] !== undefined;
-                    const isCorrect = validationState[cellKey] === true;
-                    const isWrong = validationState[cellKey] === false;
-                    const cellNotes = notes[cellKey] || new Set<number>();
-                    const cellValue = userGrid[rowIndex]?.[colIndex] ?? 0;
-                    
-                    // Smart highlighting
-                    const isRelated = relatedCells.has(cellKey) && !isSelected;
-                    const isMatchingNumber = selectedValue !== null && 
-                      cellValue === selectedValue && 
-                      cellValue !== 0 &&
-                      !isSelected;
-                    
-                    return (
-                      <td
-                        key={`${rowIndex}-${colIndex}`}
-                        onClick={() => handleCellClick(rowIndex, colIndex)}
-                        className={`
-                          w-12 h-12 text-center align-middle cursor-pointer relative
-                          border border-slate-500
-                          ${isBoxBorderTop ? 'border-t-2 border-t-slate-300' : ''}
-                          ${isBoxBorderLeft ? 'border-l-2 border-l-slate-300' : ''}
-                          ${isBoxBorderBottom ? 'border-b-2 border-b-slate-300' : ''}
-                          ${isBoxBorderRight ? 'border-r-2 border-r-slate-300' : ''}
-                          ${rowIndex === 0 ? 'border-t-3 border-t-slate-200' : ''}
-                          ${colIndex === 0 ? 'border-l-3 border-l-slate-200' : ''}
-                          ${rowIndex === 8 ? 'border-b-3 border-b-slate-200' : ''}
-                          ${colIndex === 8 ? 'border-r-3 border-r-slate-200' : ''}
-                          ${isGiven ? 'bg-slate-700 text-slate-200 font-semibold' : 'bg-slate-800'}
-                          ${isSelected ? 'ring-4 ring-blue-500 bg-blue-500/20' : ''}
-                          ${isRelated ? 'bg-slate-700/30' : ''}
-                          ${isMatchingNumber ? 'bg-blue-500/20' : ''}
-                          ${isValidated && isCorrect ? 'text-green-400' : ''}
-                          ${isValidated && isWrong ? 'text-red-400' : ''}
-                          ${!isGiven && !isSelected && !isValidated && cellValue !== 0 ? 'text-blue-300' : ''}
-                          ${!isGiven && !isSelected && !isValidated && cellValue === 0 ? 'text-slate-300' : ''}
-                          hover:bg-slate-700/50 transition-colors
-                        `}
-                      >
-                        {/* Main number */}
-                        {cell !== 0 ? (
-                          <span className="text-lg font-semibold">{cell}</span>
-                        ) : cellNotes.size > 0 ? (
-                          /* Notes grid (3x3 mini-grid) */
-                          <div className="absolute inset-0 grid grid-cols-3 text-[8px] text-slate-400 p-0.5">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                              <span 
-                                key={num}
-                                className={`flex items-center justify-center ${
-                                  cellNotes.has(num) ? 'text-slate-300 font-medium' : 'text-transparent'
-                                }`}
-                              >
-                                {num}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Intelligent Number Pad */}
-      <div className="flex justify-center gap-2 mt-4">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => {
-          const [row, col] = selectedCell || [null, null];
-          const cellKey = row !== null && col !== null ? `${row}-${col}` : null;
-          const isInNotes = isNotesMode && cellKey && (notes[cellKey] || new Set<number>()).has(num);
-          const isFilled = !isNotesMode && row !== null && col !== null && userGrid[row][col] === num;
-          const isCompleted = completedNumbers.has(num);
+      <div className="flex-1 flex gap-6 min-h-0">
+        {/* Main Grid Area */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-background/50 rounded-xl border border-border/50 p-4">
           
-          return (
-            <button
-              key={num}
-              onClick={() => handleNumberInput(num)}
-              disabled={!selectedCell}
-              className={`
-                w-12 h-12 rounded-lg font-semibold transition-all duration-200
-                ${isFilled || isInNotes
-                  ? 'bg-blue-600 text-white'
-                  : isCompleted
-                  ? 'bg-slate-800/50 text-slate-500 opacity-50 cursor-not-allowed'
-                  : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
-                }
-                ${!selectedCell ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-              title={isCompleted ? `All ${num}s are placed` : `Place ${num}`}
-            >
-              {num}
-            </button>
-          );
-        })}
-        <button
-          onClick={() => {
-            if (!selectedCell) return;
-            const [row, col] = selectedCell;
-            const notesForHistory = Object.fromEntries(
-              Object.entries(notes).map(([key, value]) => [key, new Set(Array.from(value))])
-            );
-            saveToHistory(userGrid, notesForHistory);
-            const newGrid = userGrid.map(r => [...r]);
-            newGrid[row][col] = 0;
-            setUserGrid(newGrid);
-            
-            const key = `${row}-${col}`;
-            const newNotes = { ...notes };
-            delete newNotes[key];
-            setNotes(newNotes);
-            
-            setValidationState(prev => {
-              const newState = { ...prev };
-              delete newState[key];
-              return newState;
-            });
-          }}
-          disabled={!selectedCell}
-          className="w-12 h-12 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Clear cell"
-        >
-          <Trash2 className="h-5 w-5 mx-auto" />
-        </button>
-      </div>
+          {/* Status Bar */}
+          <div className="w-full max-w-md flex items-center justify-between mb-4 text-sm">
+             <div className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-full border border-border">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="font-mono font-medium text-foreground">{formatTimer(timer)}</span>
+             </div>
+             <div className="flex items-center gap-4">
+                <span className="font-medium text-muted-foreground capitalize">{puzzle.difficulty}</span>
+                <button onClick={() => setIsNotesMode(!isNotesMode)} className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-colors ${isNotesMode ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:bg-secondary/80'}`}>
+                  <PenTool className="h-3 w-3" />
+                  {isNotesMode ? 'NOTES ON' : 'NOTES OFF'}
+                </button>
+             </div>
+          </div>
 
-      {/* Instructions */}
-      <div className="text-center text-sm text-slate-400 space-y-1">
-        <p>Click a cell to select it, then press 1-9 to fill or use the number pad</p>
-        <p>
-          {isNotesMode 
-            ? 'Candidate Mode: Add pencil marks (small numbers) to track possibilities'
-            : 'Normal Mode: Fill cells with numbers'
-          } • Use arrow keys to navigate
-        </p>
+          {/* The Grid */}
+          {!displayGrid || displayGrid.length === 0 ? (
+             <div className="text-muted-foreground">No puzzle loaded</div>
+          ) : (
+            <div className="inline-block border-2 border-foreground bg-foreground rounded-lg overflow-hidden shadow-xl">
+              <table className="border-collapse bg-background">
+                <tbody>
+                  {displayGrid.map((row, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {row.map((cell, colIndex) => {
+                        const isGiven = grid[rowIndex]?.[colIndex] !== undefined && grid[rowIndex][colIndex] !== 0;
+                        const isBoxBorderBottom = (rowIndex + 1) % 3 === 0 && rowIndex !== 8;
+                        const isBoxBorderRight = (colIndex + 1) % 3 === 0 && colIndex !== 8;
+                        const isSelected = selectedCell && selectedCell[0] === rowIndex && selectedCell[1] === colIndex;
+                        const cellKey = `${rowIndex}-${colIndex}`;
+                        const isValidated = validationState[cellKey] !== undefined;
+                        const isCorrect = validationState[cellKey] === true;
+                        const isWrong = validationState[cellKey] === false;
+                        const cellNotes = notes[cellKey] || new Set<number>();
+                        const cellValue = userGrid[rowIndex]?.[colIndex] ?? 0;
+                        const isRelated = relatedCells.has(cellKey) && !isSelected;
+                        const isMatchingNumber = selectedValue !== null && cellValue === selectedValue && cellValue !== 0 && !isSelected;
+                        
+                        return (
+                          <td
+                            key={`${rowIndex}-${colIndex}`}
+                            onClick={() => handleCellClick(rowIndex, colIndex)}
+                            className={`
+                              w-12 h-12 text-center align-middle cursor-pointer relative transition-colors duration-75
+                              border-r border-b border-border/40
+                              ${isBoxBorderBottom ? '!border-b-2 !border-b-foreground/30' : ''}
+                              ${isBoxBorderRight ? '!border-r-2 !border-r-foreground/30' : ''}
+                              ${isGiven ? 'bg-secondary/50 text-foreground font-bold text-xl' : 'bg-background text-primary text-xl font-medium'}
+                              ${isSelected ? '!bg-primary/20 !ring-inset !ring-2 !ring-primary z-10' : ''}
+                              ${isRelated ? 'bg-secondary/30' : ''}
+                              ${isMatchingNumber ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400' : ''}
+                              ${isWrong ? '!bg-red-500/20 !text-red-600' : ''}
+                              ${isCorrect ? '!text-green-600' : ''}
+                              hover:bg-secondary/60
+                            `}
+                          >
+                            {cell !== 0 ? cell : cellNotes.size > 0 && (
+                              <div className="grid grid-cols-3 gap-px p-0.5 w-full h-full pointer-events-none">
+                                {[1,2,3,4,5,6,7,8,9].map(n => (
+                                  <div key={n} className="flex items-center justify-center text-[8px] leading-none text-muted-foreground/80">
+                                    {cellNotes.has(n) ? n : ''}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Controls */}
+        <div className="w-64 flex flex-col gap-4">
+          {/* Numpad */}
+          <div className="bg-card rounded-xl p-4 border border-border/50 shadow-sm">
+             <div className="grid grid-cols-3 gap-2">
+                {[1,2,3,4,5,6,7,8,9].map(num => {
+                   const isCompleted = completedNumbers.has(num);
+                   return (
+                     <button
+                       key={num}
+                       onClick={() => handleNumberInput(num)}
+                       disabled={!selectedCell || isCompleted}
+                       className={`
+                         aspect-square rounded-lg font-bold text-lg transition-all
+                         ${isCompleted 
+                            ? 'opacity-20 bg-muted text-muted-foreground' 
+                            : 'bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0'
+                         }
+                       `}
+                     >
+                       {num}
+                     </button>
+                   );
+                })}
+             </div>
+             <button
+               onClick={() => {
+                 if (!selectedCell) return;
+                 const [row, col] = selectedCell;
+                 const notesForHistory = Object.fromEntries(
+                   Object.entries(notes).map(([key, value]) => [key, new Set(Array.from(value))])
+                 );
+                 saveToHistory(userGrid, notesForHistory);
+                 const newGrid = userGrid.map(r => [...r]);
+                 newGrid[row][col] = 0;
+                 setUserGrid(newGrid);
+                 const key = `${row}-${col}`;
+                 const newNotes = { ...notes };
+                 delete newNotes[key];
+                 setNotes(newNotes);
+                 setValidationState(prev => {
+                   const newState = { ...prev };
+                   delete newState[key];
+                   return newState;
+                 });
+               }}
+               className="w-full mt-3 py-2 flex items-center justify-center gap-2 text-destructive hover:bg-destructive/10 rounded-lg transition-colors font-medium text-sm"
+             >
+               <Trash2 className="h-4 w-4" /> Clear Cell
+             </button>
+          </div>
+
+          <button onClick={checkPuzzle} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl shadow-lg shadow-green-500/20 font-bold transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+            <Check className="h-5 w-5" /> Check Solution
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -18,10 +18,9 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<[number, number] | null>(null);
-  const [wordListFontSize, setWordListFontSize] = useState(14); // Font size in pixels for word list
+  const [wordListFontSize, setWordListFontSize] = useState(14);
   const gridRef = useRef<HTMLDivElement>(null);
   
-  // Create a map of word positions for quick lookup
   const wordPositionMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
     placedWords.forEach(({ word, positions }) => {
@@ -35,24 +34,6 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     return map;
   }, [placedWords]);
 
-  // Create a reverse map: cell position -> words that contain it
-  const cellToWordsMap = useMemo(() => {
-    const map = new Map<string, string[]>();
-    placedWords.forEach(({ word, positions }) => {
-      positions.forEach(([r, c]) => {
-        const key = `${r},${c}`;
-        if (!map.has(key)) {
-          map.set(key, []);
-        }
-        map.get(key)!.push(word);
-      });
-    });
-    return map;
-  }, [placedWords]);
-
-
-
-  // Create a set of all solution positions
   const allSolutionPositions = useMemo(() => {
     const positions = new Set<string>();
     placedWords.forEach(({ positions: wordPositions }) => {
@@ -62,72 +43,47 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     });
     return positions;
   }, [placedWords]);
-  
-  // Check if a cell is part of the hovered word
+
   const isCellHighlighted = (row: number, col: number): boolean => {
-    if (showSolution) {
-      return allSolutionPositions.has(`${row},${col}`);
-    }
-    if (selectedCells.size > 0) {
-      return selectedCells.has(`${row},${col}`);
-    }
+    if (showSolution) return allSolutionPositions.has(`${row},${col}`);
+    if (selectedCells.size > 0) return selectedCells.has(`${row},${col}`);
     if (!hoveredWord) return false;
     const positionSet = wordPositionMap.get(hoveredWord);
-    if (!positionSet) return false;
-    return positionSet.has(`${row},${col}`);
+    return positionSet ? positionSet.has(`${row},${col}`) : false;
   };
 
-  // Find word from selected cells
   const findWordFromSelection = useCallback((cells: Set<string>): string | null => {
     if (cells.size === 0) return null;
-    
-    // Check each word to see if all selected cells match
     for (const { word, positions } of placedWords) {
       const wordCells = new Set(positions.map(([r, c]) => `${r},${c}`));
-      
-      // Check if selection exactly matches a word
       if (cells.size === wordCells.size) {
         let matches = true;
         for (const cell of cells) {
-          if (!wordCells.has(cell)) {
-            matches = false;
-            break;
-          }
+          if (!wordCells.has(cell)) { matches = false; break; }
         }
-        if (matches) {
-          return word;
-        }
+        if (matches) return word;
       }
     }
-    
     return null;
   }, [placedWords]);
 
-  // Handle mouse down - start selection
   const handleMouseDown = useCallback((row: number, col: number) => {
-    if (showSolution) return; // Don't allow selection when solution is shown
-    
+    if (showSolution) return;
     setIsSelecting(true);
     setSelectionStart([row, col]);
     setSelectedCells(new Set([`${row},${col}`]));
   }, [showSolution]);
 
-  // Handle mouse move - update selection
   const handleMouseMove = useCallback((row: number, col: number) => {
     if (!isSelecting || !selectionStart || showSolution) return;
-    
     const [startRow, startCol] = selectionStart;
     const selected = new Set<string>();
-    
-    // Calculate all cells between start and current position
     const rowDiff = row - startRow;
     const colDiff = col - startCol;
     const rowStep = rowDiff === 0 ? 0 : (rowDiff > 0 ? 1 : -1);
     const colStep = colDiff === 0 ? 0 : (colDiff > 0 ? 1 : -1);
     
-    // Only allow straight lines (horizontal, vertical, or diagonal)
     if (rowStep !== 0 && colStep !== 0 && Math.abs(rowDiff) !== Math.abs(colDiff)) {
-      // Not a valid line, just select the start cell
       selected.add(`${startRow},${startCol}`);
     } else {
       const steps = Math.max(Math.abs(rowDiff), Math.abs(colDiff)) + 1;
@@ -139,36 +95,22 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         }
       }
     }
-    
     setSelectedCells(selected);
   }, [isSelecting, selectionStart, showSolution, grid]);
 
-  // Handle mouse up - finalize selection
   const handleMouseUp = useCallback(() => {
     if (!isSelecting) return;
-    
     setIsSelecting(false);
-    
-    // Check if selection matches a word
     const foundWord = findWordFromSelection(selectedCells);
     if (foundWord) {
-      // Highlight the word and clear selection after a moment
       setHoveredWord(foundWord);
-      setTimeout(() => {
-        setSelectedCells(new Set());
-        setHoveredWord(null);
-      }, 1000);
+      setTimeout(() => { setSelectedCells(new Set()); setHoveredWord(null); }, 1000);
     } else {
-      // Clear selection if no word found
-      setTimeout(() => {
-        setSelectedCells(new Set());
-      }, 300);
+      setTimeout(() => { setSelectedCells(new Set()); }, 300);
     }
-    
     setSelectionStart(null);
   }, [isSelecting, selectedCells, findWordFromSelection]);
 
-  // Handle mouse leave - cancel selection
   const handleMouseLeave = useCallback(() => {
     if (isSelecting) {
       setIsSelecting(false);
@@ -176,64 +118,48 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
       setSelectionStart(null);
     }
   }, [isSelecting]);
-  
+
   const gridSize = grid.length;
   const maxWidth = 600;
-  const cellSize = Math.min(maxWidth / gridSize, 28);
+  const cellSize = Math.min(maxWidth / gridSize, 32);
+  const filename = showSolution ? `${title}_Solution` : `${title}_Puzzle`;
 
-  const filename = showSolution 
-    ? `${title.replace(/\s+/g, '_')}_Solution`
-    : `${title.replace(/\s+/g, '_')}_Puzzle`;
-  
   return (
-    <div className="flex flex-col h-full bg-slate-900/80 backdrop-blur-sm rounded-xl p-6 overflow-hidden shadow-xl border border-slate-700/50">
+    <div className="flex flex-col h-full bg-card/50 backdrop-blur-xl rounded-xl p-6 overflow-hidden shadow-sm border border-border/50 transition-colors">
+      
       {/* Title and Controls */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-2xl font-extrabold bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">
           {title}
         </h2>
-        <div className="flex items-center gap-2">
-          {/* Show Solution Toggle */}
-          <button
-            onClick={() => {
-              setShowSolution(!showSolution);
-              setSelectedCells(new Set());
-              setHoveredWord(null);
-            }}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 shadow-lg ${
-              showSolution
-                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-green-500/30'
-                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80 border border-slate-700/50'
-            }`}
-          >
-            {showSolution ? (
-              <>
-                <EyeOff className="h-4 w-4" />
-                Hide Solution
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4" />
-                Show Solution
-              </>
-            )}
-          </button>
-        </div>
+        
+        <button
+          onClick={() => {
+            setShowSolution(!showSolution);
+            setSelectedCells(new Set());
+            setHoveredWord(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 border ${
+            showSolution
+              ? 'bg-primary text-primary-foreground border-primary shadow-md'
+              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent'
+          }`}
+        >
+          {showSolution ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showSolution ? 'Hide Solution' : 'Show Solution'}
+        </button>
       </div>
       
-      {/* Exportable Container */}
-      <div 
-        id="puzzle-preview-container" 
-        className="flex-1 flex gap-4 overflow-hidden min-h-0 bg-white rounded-xl p-4 shadow-inner border border-slate-200/50"
-      >
-        <div className="flex-1 flex gap-4 overflow-hidden min-h-0 p-4">
-        {/* Grid */}
-          <div 
-            ref={gridRef}
-            className="flex-1 flex items-center justify-center overflow-auto"
-            onMouseLeave={handleMouseLeave}
-            onMouseUp={handleMouseUp}
-          >
+      {/* Content Container */}
+      <div id="puzzle-preview-container" className="flex-1 flex gap-6 overflow-hidden min-h-0 bg-background/50 rounded-xl p-6 border border-border/50">
+        
+        {/* Grid Area */}
+        <div 
+          ref={gridRef}
+          className="flex-1 flex items-center justify-center overflow-auto"
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -241,7 +167,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
             className="inline-block"
           >
             <div
-                className="grid gap-px bg-slate-700 p-2 rounded-lg shadow-2xl select-none"
+              className="grid gap-px bg-border p-2 rounded-lg shadow-sm select-none"
               style={{
                 gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
                 width: `${gridSize * cellSize + 16}px`,
@@ -250,40 +176,29 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
               {grid.map((row, rowIndex) =>
                 row.map((cell, colIndex) => {
                   const isHighlighted = isCellHighlighted(rowIndex, colIndex);
-                    const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
-                    const cellKey = `${rowIndex},${colIndex}`;
-                    
+                  const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
+                  
                   return (
                     <motion.div
                       key={`${rowIndex}-${colIndex}`}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: (rowIndex * gridSize + colIndex) * 0.001 }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleMouseDown(rowIndex, colIndex);
-                        }}
-                        onMouseEnter={() => handleMouseMove(rowIndex, colIndex)}
+                      onMouseDown={(e) => { e.preventDefault(); handleMouseDown(rowIndex, colIndex); }}
+                      onMouseEnter={() => handleMouseMove(rowIndex, colIndex)}
                       className={`
                         aspect-square flex items-center justify-center
-                        text-sm font-semibold
-                        border border-slate-600
-                        transition-all duration-200
-                          cursor-pointer
+                        text-sm font-medium transition-all duration-200 cursor-pointer
                         ${isHighlighted 
                             ? showSolution
-                              ? 'bg-green-500 text-white border-green-400 shadow-lg z-10'
+                              ? 'bg-green-500 text-white z-10 rounded-sm'
                               : isSelected
-                                ? 'bg-purple-500 text-white border-purple-400 shadow-lg scale-105 z-10'
-                                : 'bg-blue-500 text-white border-blue-400 shadow-lg scale-105 z-10'
-                            : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                                ? 'bg-primary text-primary-foreground scale-105 shadow-md z-10 rounded-sm'
+                                : 'bg-primary/80 text-primary-foreground scale-105 shadow-md z-10 rounded-sm'
+                            : 'bg-card text-foreground hover:bg-secondary/80'
                         }
                       `}
                       style={{
                         width: `${cellSize}px`,
                         height: `${cellSize}px`,
-                          fontSize: `${Math.max(cellSize * 0.35, 9)}px`,
-                          userSelect: 'none',
+                        fontSize: `${Math.max(cellSize * 0.4, 10)}px`,
                       }}
                     >
                       {cell}
@@ -295,60 +210,55 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
           </motion.div>
         </div>
         
-        {/* Word List */}
-          <div className="w-56 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 overflow-y-auto shadow-lg border border-slate-700/50">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-white drop-shadow-sm">Word List</h3>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-slate-400">Size:</label>
-                <input
-                  type="number"
-                  min="8"
-                  max="24"
-                  value={wordListFontSize}
-                  onChange={(e) => setWordListFontSize(Math.max(8, Math.min(24, parseInt(e.target.value) || 14)))}
-                  className="w-12 px-1.5 py-0.5 text-xs bg-slate-700/80 border border-slate-600/50 rounded text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50"
-                />
-              </div>
+        {/* Word List Sidebar */}
+        <div className="w-64 bg-card/80 rounded-xl p-5 overflow-y-auto border border-border/50 flex flex-col">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-border/50">
+            <h3 className="text-sm font-bold text-foreground">Word List</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Size</span>
+              <input
+                type="number"
+                min="8"
+                max="24"
+                value={wordListFontSize}
+                onChange={(e) => setWordListFontSize(Math.max(8, Math.min(24, parseInt(e.target.value) || 14)))}
+                className="w-12 px-1.5 py-0.5 text-xs bg-secondary border border-border rounded text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
             </div>
-            {!showSolution && (
-              <p className="text-xs text-slate-400 mb-3 italic">Click and drag on the grid to find words!</p>
-            )}
-            <div className="space-y-2.5">
+          </div>
+          
+          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
             {placedWords.map(({ word }, index) => (
               <motion.div
                 key={word}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  onMouseEnter={() => !showSolution && setHoveredWord(word)}
-                  onMouseLeave={() => !showSolution && setHoveredWord(null)}
+                transition={{ delay: index * 0.02 }}
+                onMouseEnter={() => !showSolution && setHoveredWord(word)}
+                onMouseLeave={() => !showSolution && setHoveredWord(null)}
                 className={`
-                    px-3 py-2 rounded-lg cursor-pointer font-semibold
-                  transition-all duration-200
-                    ${showSolution
-                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30'
-                      : hoveredWord === word
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl shadow-blue-500/40 scale-105'
-                    : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600/80 hover:scale-102 border border-slate-600/50'
+                  px-3 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors
+                  ${showSolution
+                    ? 'text-green-600 dark:text-green-400 bg-green-500/10'
+                    : hoveredWord === word
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                   }
                 `}
                 style={{ fontSize: `${wordListFontSize}px` }}
               >
-                <span>{word}</span>
+                {word}
               </motion.div>
             ))}
-            </div>
           </div>
         </div>
       </div>
 
-      {/* PNG Download Button */}
-      <div className="mt-4">
+      <div className="mt-6 flex justify-end">
         <PNGDownloadButton
           targetId="puzzle-preview-container"
           filename={filename}
-          label={showSolution ? 'Download Solution PNG' : 'Download Puzzle PNG'}
+          label={showSolution ? 'Download Solution' : 'Download Puzzle'}
         />
       </div>
     </div>
