@@ -1321,12 +1321,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground relative" suppressHydrationWarning>
-      {/* Dot Pattern Background */}
-      <div className="absolute inset-0 z-0 bg-background bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:16px_16px] opacity-50 pointer-events-none" />
+      {/* Grid Pattern Background - Professional texture */}
+      <div className="absolute inset-0 z-0 bg-grid-pattern opacity-60 pointer-events-none" />
       
       <div className="relative z-10">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md shadow-lg">
+      <header className="border-b border-border bg-background/80 backdrop-blur-md shadow-lg sticky top-0 z-20">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Left: Logo and Title */}

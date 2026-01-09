@@ -26,18 +26,21 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background p-4">
       {/* Background decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:16px_16px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
-        <div className="bg-card/80 backdrop-blur-xl rounded-2xl shadow-xl border border-border p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4 text-primary">
+        <div className="bg-card/90 backdrop-blur-xl rounded-2xl shadow-xl border border-border p-6 relative overflow-hidden">
+          {/* Colored accent bar with bright yellow */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-400" />
+          
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-50 dark:bg-yellow-950/30 rounded-xl mb-4 text-yellow-600 dark:text-yellow-400 ring-2 ring-yellow-200 dark:ring-yellow-900/50">
               <Lock className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Welcome Back</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to generate puzzles</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Welcome Back</h1>
+            <p className="text-sm text-muted-foreground mt-1.5">Enter your credentials to continue</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,7 +53,7 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm"
-                  placeholder="admin"
+                  placeholder="Enter username"
                 />
               </div>
             </div>
@@ -64,15 +67,34 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm"
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                 />
               </div>
             </div>
 
-            {error && <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-medium">{error}</div>}
+            {error && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
+                {error}
+              </div>
+            )}
 
-            <Button type="submit" disabled={isLoading} className="w-full h-10 font-semibold" size="lg">
-              {isLoading ? 'Checking...' : 'Sign In'} <LogIn className="ml-2 h-4 w-4" />
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full h-11 font-semibold shadow-sm" 
+              size="lg"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  Authenticating...
+                </span>
+              ) : (
+                <>
+                  Sign In
+                  <LogIn className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </form>
         </div>
