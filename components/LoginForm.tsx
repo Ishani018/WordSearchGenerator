@@ -26,17 +26,17 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-primary/5 to-background p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_50%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      {/* Mesh Gradient Background - Matches main app */}
+      <div className="absolute inset-0 bg-mesh-pattern opacity-100 pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
-        <div className="bg-card/90 backdrop-blur-xl rounded-2xl shadow-xl border border-border p-6 relative overflow-hidden">
-          {/* Colored accent bar with bright yellow */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-400" />
+        <div className="bg-white/90 dark:bg-card/90 backdrop-blur-xl rounded-2xl shadow-xl border border-border/20 p-6 relative overflow-hidden">
+          {/* Colored accent bar with vibrant Indigo */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-primary/90 to-primary" />
           
           <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-50 dark:bg-yellow-950/30 rounded-xl mb-4 text-yellow-600 dark:text-yellow-400 ring-2 ring-yellow-200 dark:ring-yellow-900/50">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-primary/10 rounded-xl mb-4 text-primary ring-2 ring-primary/20">
               <Lock className="h-6 w-6" />
             </div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Welcome Back</h1>
@@ -52,7 +52,7 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm"
+                  className="w-full pl-9 pr-4 py-2.5 bg-secondary rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all outline-none text-sm"
                   placeholder="Enter username"
                 />
               </div>
@@ -66,7 +66,7 @@ export default function LoginForm({ onLogin }: { onLogin: () => void }) {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-secondary/50 border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none text-sm"
+                  className="w-full pl-9 pr-4 py-2.5 bg-secondary rounded-lg text-foreground focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all outline-none text-sm"
                   placeholder="Enter password"
                 />
               </div>

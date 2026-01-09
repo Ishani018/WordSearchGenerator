@@ -121,11 +121,18 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
 
   const gridSize = grid.length;
   const maxWidth = 600;
-  const cellSize = Math.min(maxWidth / gridSize, 32);
+  const cellSize = Math.min(maxWidth / gridSize, 36); // Larger cells for cleaner look
   const filename = showSolution ? `${title}_Solution` : `${title}_Puzzle`;
 
+  // Get hovered word positions for highlighter effect
+  const hoveredPositions = useMemo(() => {
+    if (!hoveredWord || showSolution) return new Set<string>();
+    const positionSet = wordPositionMap.get(hoveredWord);
+    return positionSet || new Set<string>();
+  }, [hoveredWord, showSolution, wordPositionMap]);
+
   return (
-    <div className="flex flex-col h-full bg-card/50 backdrop-blur-xl rounded-xl p-6 overflow-hidden shadow-sm border border-border/50 transition-colors">
+    <div className="flex flex-col h-full">
       
       {/* Title and Controls */}
       <div className="flex items-center justify-between mb-6">
@@ -150,13 +157,13 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
         </button>
       </div>
       
-      {/* Content Container */}
-      <div id="puzzle-preview-container" className="flex-1 flex gap-6 overflow-hidden min-h-0 bg-background/50 rounded-xl p-6 border border-border/50">
+      {/* Content Container - Paper on Desk */}
+      <div id="puzzle-preview-container" className="flex-1 flex gap-6 overflow-hidden min-h-0">
         
-        {/* Grid Area */}
+        {/* Grid Area - Physical Paper Effect */}
         <div 
           ref={gridRef}
-          className="flex-1 flex items-center justify-center overflow-auto"
+          className="flex-1 flex items-center justify-center overflow-auto p-8"
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
         >
@@ -166,52 +173,83 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
             transition={{ duration: 0.3 }}
             className="inline-block"
           >
-            <div
-              className="grid gap-px bg-border p-2 rounded-lg shadow-sm select-none"
-              style={{
-                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-                width: `${gridSize * cellSize + 16}px`,
-              }}
-            >
-              {grid.map((row, rowIndex) =>
-                row.map((cell, colIndex) => {
-                  const isHighlighted = isCellHighlighted(rowIndex, colIndex);
-                  const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
-                  
+            {/* Paper Container */}
+            <div className="bg-white rounded-lg shadow-2xl shadow-black/5 p-8 relative">
+              {/* Subtle grain texture */}
+              <div className="absolute inset-0 rounded-lg opacity-[0.03] pointer-events-none" 
+                   style={{
+                     backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                   }}
+              />
+              
+              {/* Grid */}
+              <div
+                className="grid gap-px bg-border/30 p-3 rounded select-none relative"
+                style={{
+                  gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+                  width: `${gridSize * cellSize + 24}px`,
+                }}
+              >
+                {/* Highlighter overlay for hovered word */}
+                {!showSolution && hoveredWord && Array.from(hoveredPositions).map((pos, idx) => {
+                  const [r, c] = pos.split(',').map(Number);
                   return (
-                    <motion.div
-                      key={`${rowIndex}-${colIndex}`}
-                      onMouseDown={(e) => { e.preventDefault(); handleMouseDown(rowIndex, colIndex); }}
-                      onMouseEnter={() => handleMouseMove(rowIndex, colIndex)}
-                      className={`
-                        aspect-square flex items-center justify-center
-                        text-sm font-medium transition-all duration-200 cursor-pointer
-                        ${isHighlighted 
-                            ? showSolution
-                              ? 'bg-green-500 text-white z-10 rounded-sm'
-                              : isSelected
-                                ? 'bg-primary text-primary-foreground scale-105 shadow-md z-10 rounded-sm'
-                                : 'bg-primary/80 text-primary-foreground scale-105 shadow-md z-10 rounded-sm'
-                            : 'bg-card text-foreground hover:bg-secondary/80'
-                        }
-                      `}
+                    <div
+                      key={`highlight-${pos}-${idx}`}
+                      className="absolute bg-yellow-300/40 rounded-sm pointer-events-none z-0"
                       style={{
+                        left: `${c * cellSize + 12}px`,
+                        top: `${r * cellSize + 12}px`,
                         width: `${cellSize}px`,
                         height: `${cellSize}px`,
-                        fontSize: `${Math.max(cellSize * 0.4, 10)}px`,
                       }}
-                    >
-                      {cell}
-                    </motion.div>
+                    />
                   );
-                })
-              )}
+                })}
+                
+                {grid.map((row, rowIndex) =>
+                  row.map((cell, colIndex) => {
+                    const isHighlighted = isCellHighlighted(rowIndex, colIndex);
+                    const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
+                    const isHovered = hoveredPositions.has(`${rowIndex},${colIndex}`);
+                    
+                    return (
+                      <motion.div
+                        key={`${rowIndex}-${colIndex}`}
+                        onMouseDown={(e) => { e.preventDefault(); handleMouseDown(rowIndex, colIndex); }}
+                        onMouseEnter={() => handleMouseMove(rowIndex, colIndex)}
+                        className={`
+                          aspect-square flex items-center justify-center
+                          text-base font-semibold transition-all duration-200 cursor-pointer relative z-10
+                          ${isHighlighted 
+                              ? showSolution
+                                ? 'bg-green-500 text-white rounded-sm'
+                                : isSelected
+                                  ? 'bg-primary text-primary-foreground scale-105 shadow-md rounded-sm'
+                                  : isHovered
+                                    ? 'bg-yellow-200/60 text-foreground rounded-sm'
+                                    : 'bg-primary/80 text-primary-foreground scale-105 shadow-md rounded-sm'
+                              : 'bg-white text-foreground hover:bg-gray-50'
+                          }
+                        `}
+                        style={{
+                          width: `${cellSize}px`,
+                          height: `${cellSize}px`,
+                          fontSize: `${Math.max(cellSize * 0.45, 12)}px`, // Larger, cleaner letters
+                        }}
+                      >
+                        {cell}
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </motion.div>
         </div>
         
         {/* Word List Sidebar */}
-        <div className="w-64 bg-card/80 rounded-xl p-5 overflow-y-auto border border-border/50 flex flex-col">
+        <div className="w-64 bg-white/80 dark:bg-card/80 rounded-xl p-5 overflow-y-auto border border-border/30 flex flex-col shadow-lg">
           <div className="flex items-center justify-between mb-4 pb-4 border-b border-border/50">
             <h3 className="text-sm font-bold text-foreground">Word List</h3>
             <div className="flex items-center gap-2">

@@ -1321,8 +1321,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground relative" suppressHydrationWarning>
-      {/* Grid Pattern Background - Professional texture */}
-      <div className="absolute inset-0 z-0 bg-grid-pattern opacity-60 pointer-events-none" />
+      {/* Mesh Gradient Background - Creative workspace */}
+      <div className="absolute inset-0 z-0 bg-mesh-pattern opacity-100 pointer-events-none" />
       
       <div className="relative z-10">
       {/* Header */}
@@ -1410,11 +1410,54 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Sticky Status Pill for Progress */}
+      {(mode === 'book' && isGeneratingStructure) || (mode === 'single' && isGeneratingWords) ? (
+        <div className="sticky top-[73px] z-30 mx-auto max-w-2xl px-4 mt-4">
+          <div className="bg-primary/95 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl border border-primary/20 flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-primary-foreground animate-pulse" />
+              <span className="text-sm font-semibold text-primary-foreground truncate">
+                {mode === 'book' 
+                  ? (structureProgress.status || 'Generating book structure...')
+                  : (wordGenerationProgress.status || 'Generating words...')
+                }
+              </span>
+            </div>
+            {(mode === 'book' && structureProgress.total > 0) || (mode === 'single' && wordGenerationProgress.total > 0) ? (
+              <>
+                <div className="flex-1 mx-4 max-w-[200px]">
+                  <div className="w-full bg-primary-foreground/20 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-primary-foreground h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: mode === 'book'
+                          ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
+                          : `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-primary-foreground whitespace-nowrap">
+                  {mode === 'book' 
+                    ? `${structureProgress.current}/${structureProgress.total}`
+                    : `${wordGenerationProgress.current}/${wordGenerationProgress.total}`
+                  }
+                </span>
+              </>
+            ) : (
+              <div className="w-16 h-2 bg-primary-foreground/20 rounded-full overflow-hidden ml-4">
+                <div className="h-full bg-primary-foreground rounded-full animate-pulse" style={{ width: '30%' }} />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {/* Main Layout */}
       <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 h-[calc(100vh-100px)]">
-          {/* Left Sidebar - Controls */}
-          <aside className="space-y-6 overflow-y-auto pr-2">
+          {/* Left Sidebar - Floating Glass Panel */}
+          <aside className="bg-white/70 dark:bg-card/70 backdrop-blur-xl rounded-2xl shadow-xl p-6 space-y-6 overflow-y-auto border border-border/20">
             {/* Change Mode Button */}
             <button
               onClick={() => setShowModeSelection(true)}
@@ -1424,75 +1467,10 @@ export default function Home() {
               Change Mode
             </button>
 
-            {/* Structure Generation Progress (Book Mode) - Moved to top for visibility */}
-            {mode === 'book' && isGeneratingStructure && (
-              <div className="bg-primary rounded-xl p-5 border border-primary/50 shadow-sm/20">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary-foreground drop-shadow-sm">
-                      {structureProgress.status || 'Generating book structure...'}
-                    </span>
-                    {structureProgress.total > 0 && (
-                      <span className="text-xs text-primary-foreground font-bold bg-primary/30 px-2 py-1 rounded-full">
-                        {Math.round((structureProgress.current / structureProgress.total) * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-primary/20 rounded-full h-4 overflow-hidden shadow-inner">
-                    <div 
-                      className="bg-gradient-to-r from-white via-primary/20 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
-                      style={{ 
-                        width: structureProgress.total > 0 
-                          ? `${Math.min((structureProgress.current / structureProgress.total) * 100, 100)}%`
-                          : '30%' // Indeterminate progress
-                      }}
-                    />
-                  </div>
-                  {structureProgress.total > 0 && (
-                    <div className="text-xs text-primary-foreground text-center font-medium">
-                      {structureProgress.current} / {structureProgress.total} chapters
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Word Generation Progress (Single Mode) - Moved to top for visibility */}
-            {mode === 'single' && isGeneratingWords && (
-              <div className="bg-primary rounded-xl p-5 border border-primary/50 shadow-sm/20">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary-foreground drop-shadow-sm">
-                      {wordGenerationProgress.status || 'Generating words...'}
-                    </span>
-                    {wordGenerationProgress.total > 0 && (
-                      <span className="text-xs text-primary-foreground font-bold bg-primary/30 px-2 py-1 rounded-full">
-                        {Math.round((wordGenerationProgress.current / wordGenerationProgress.total) * 100)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-full bg-primary/20 rounded-full h-4 overflow-hidden shadow-inner">
-                    <div 
-                      className="bg-gradient-to-r from-white via-primary/20 to-white h-4 rounded-full transition-all duration-300 ease-out shadow-sm"
-                      style={{ 
-                        width: wordGenerationProgress.total > 0 
-                          ? `${Math.min((wordGenerationProgress.current / wordGenerationProgress.total) * 100, 100)}%`
-                          : '30%' // Indeterminate progress
-                      }}
-                    />
-                  </div>
-                  {wordGenerationProgress.total > 0 && (
-                    <div className="text-xs text-primary-foreground text-center font-medium">
-                      {wordGenerationProgress.current} / {wordGenerationProgress.total} words
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Single CSV Import (Book Mode) - Only for Word Search */}
             {mode === 'book' && puzzleType === 'word-search' && (
-              <div className="bg-card/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-border/50 hover:border-border/50 transition-all duration-200">
+              <div className="bg-white/50 dark:bg-card/50 rounded-xl p-5 space-y-4">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Import CSV
                 </label>
@@ -1520,7 +1498,7 @@ export default function Home() {
                       max="50"
                       value={csvWordsPerPuzzle}
                       onChange={(e) => setCsvWordsPerPuzzle(Math.max(5, Math.min(50, parseInt(e.target.value) || 15)))}
-                      className="w-full px-4 py-2.5 text-sm bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 shadow-sm"
+                      className="w-full px-4 py-2.5 text-sm bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200"
                     />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-foreground mb-3 cursor-pointer group">
@@ -1610,16 +1588,16 @@ export default function Home() {
 
             {/* Sudoku Settings - Single collapsible section */}
             {puzzleType === 'sudoku' ? (
-              <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
+              <div className="bg-white/50 dark:bg-card/50 rounded-xl overflow-hidden">
                 <button
                   onClick={() => setIsSettingsSectionOpen(!isSettingsSectionOpen)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-white/80 dark:hover:bg-card/80 transition-all duration-200 rounded-t-xl group"
                 >
-                  <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Sudoku Settings</h3>
+                  <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Sudoku Settings</h3>
                   <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isSettingsSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                 </button>
                 {isSettingsSectionOpen && (
-                  <div className="p-5 space-y-5 border-t border-border/50">
+                  <div className="p-5 space-y-5">
                     {/* Difficulty */}
                     <div>
                       <label className="block text-xs font-semibold text-foreground mb-2">
@@ -1628,7 +1606,7 @@ export default function Home() {
                       <select
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                        className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 transition-all duration-200 text-sm shadow-sm"
+                        className="w-full px-4 py-2.5 bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                       >
                         <option value="easy">Easy (36-45 clues)</option>
                         <option value="medium">Medium (30-35 clues)</option>
@@ -1685,16 +1663,16 @@ export default function Home() {
             ) : (
               <>
                 {/* Content Section - Open by default */}
-                <div className="bg-card/80 backdrop-blur-sm rounded-xl shadow-lg border border-border/50 overflow-hidden">
+                <div className="bg-white/50 dark:bg-card/50 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setIsContentSectionOpen(!isContentSectionOpen)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/50 transition-all duration-200 rounded-t-xl group"
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-white/80 dark:hover:bg-card/80 transition-all duration-200 rounded-t-xl group"
                   >
-                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary-foreground transition-colors">Content</h3>
+                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Content</h3>
                     <ChevronUp className={`h-4 w-4 text-muted-foreground transition-transform duration-300 ${isContentSectionOpen ? 'rotate-0' : 'rotate-180'}`} />
                   </button>
                   {isContentSectionOpen && (
-                    <div className="p-5 space-y-5 border-t border-border/50">
+                    <div className="p-5 space-y-5">
                   {/* Main Theme - Only for Word Search */}
                   {puzzleType === 'word-search' && (
                     <div>
@@ -1707,7 +1685,7 @@ export default function Home() {
                           value={theme}
                           onChange={(e) => setTheme(e.target.value)}
                           placeholder="e.g., Winter, Gardening..."
-                          className="flex-1 px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
+                          className="flex-1 px-4 py-2.5 bg-secondary rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                           disabled={isGeneratingStructure}
                         />
                         {mode === 'book' ? (
@@ -1835,7 +1813,7 @@ export default function Home() {
                                     onChange={e => setEditingWords(e.target.value)}
                                     placeholder="WORD1, WORD2, WORD3..."
                                     rows={3}
-                                    className="w-full px-3 py-2 bg-secondary/80 border border-border/50 rounded-lg text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all duration-200 resize-none shadow-sm"
+                                    className="w-full px-3 py-2 bg-secondary rounded-lg text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:bg-secondary/80 transition-all duration-200 resize-none"
                                   />
                                   <div className="flex gap-2 mt-2">
                                     <Button onClick={() => handleSaveWords(index)} size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-primary-foreground shadow-lg shadow-green-500/30 hover:scale-105 active:scale-95 transition-all duration-200 text-xs font-semibold">Save</Button>
@@ -1885,7 +1863,7 @@ export default function Home() {
                           onChange={(e) => setSingleWords(parseInt(e.target.value) || 20)}
                           min={5}
                           max={50}
-                          className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
+                          className="w-full px-4 py-2.5 bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                         />
                       </div>
                       <div>
@@ -1980,7 +1958,7 @@ export default function Home() {
                         <select
                           value={difficulty}
                           onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-                          className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 transition-all duration-200 text-sm shadow-sm"
+                          className="w-full px-4 py-2.5 bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                         >
                           <option value="easy">Easy</option>
                           <option value="medium">Medium</option>
@@ -2013,7 +1991,7 @@ export default function Home() {
                             onChange={(e) => setWordsPerPuzzle(parseInt(e.target.value) || 15)}
                             min={5}
                             max={30}
-                            className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
+                            className="w-full px-4 py-2.5 bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                           />
                         </div>
                         <div>
@@ -2026,7 +2004,7 @@ export default function Home() {
                             onChange={(e) => setNumChapters(parseInt(e.target.value) || 25)}
                             min={5}
                             max={100}
-                            className="w-full px-4 py-2.5 bg-secondary/80 border border-border/50 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring/50 focus:bg-secondary transition-all duration-200 text-sm shadow-sm"
+                            className="w-full px-4 py-2.5 bg-secondary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/80 transition-all duration-200 text-sm"
                           />
                         </div>
                       </div>
@@ -2065,8 +2043,8 @@ export default function Home() {
 
           </aside>
 
-          {/* Right Side - Preview */}
-          <main className="overflow-hidden flex flex-col">
+          {/* Right Side - Preview - Darker workspace for paper effect */}
+          <main className="bg-slate-100 dark:bg-slate-900/50 rounded-xl shadow-inner overflow-hidden p-6 flex flex-col">
             {/* Puzzle Preview */}
             <div className="flex-1 overflow-auto min-h-0">
               {puzzleType === 'sudoku' ? (

@@ -1,59 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  /* Modern Light Theme (Improved Contrast) */
-  --background: 240 5% 98%;      /* Slightly off-white background (Zinc-50ish) */
-  --foreground: 240 10% 3.9%;    /* Zinc-950 */
+  /* Modern Light Theme - Slate/Stone with Vibrant Indigo */
+  --background: 215 28% 98%;      /* Slate-50 - Very subtle off-white */
+  --foreground: 215 25% 7%;      /* Slate-950 */
   
   --card: 0 0% 100%;             /* Pure White Cards */
-  --card-foreground: 240 10% 3.9%;
+  --card-foreground: 215 25% 7%;
   
   --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
+  --popover-foreground: 215 25% 7%;
   
-  --primary: 240 5.9% 10%;       /* Zinc-900 */
-  --primary-foreground: 0 0% 98%;
+  --primary: 250 90% 60%;        /* Vibrant Indigo - Hue 250, Saturation 90% */
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 240 4.8% 93%;     /* Darker secondary for better input visibility */
-  --secondary-foreground: 240 5.9% 10%;
+  --secondary: 215 20% 92%;      /* Slate-100 */
+  --secondary-foreground: 215 25% 7%;
   
-  --muted: 240 4.8% 93%;
-  --muted-foreground: 240 3.8% 45%; /* Darker gray for better text readability */
+  --muted: 215 20% 92%;
+  --muted-foreground: 215 15% 45%; /* Better contrast */
   
-  --accent: 240 4.8% 93%;
-  --accent-foreground: 240 5.9% 10%;
+  --accent: 215 20% 92%;
+  --accent-foreground: 215 25% 7%;
   
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive-foreground: 0 0% 100%;
   
-  --border: 240 5.9% 85%;        /* Darker borders for definition */
-  --input: 240 5.9% 85%;
-  --ring: 240 5.9% 10%;
+  --border: 215 16% 84%;         /* Slate-200 */
+  --input: 215 20% 92%;          /* Filled input background */
+  --ring: 250 90% 60%;            /* Match primary */
   
-  --radius: 0.75rem;
+  --radius: 1rem;                 /* Friendlier, rounder corners */
 }
 
 .dark {
-  /* Professional Dark Theme */
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 6%;            /* Slightly lighter than bg */
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
+  /* Professional Dark Theme - Slate */
+  --background: 215 28% 7%;      /* Slate-950 */
+  --foreground: 215 20% 98%;     /* Slate-50 */
+  --card: 215 28% 10%;           /* Slightly lighter than bg */
+  --card-foreground: 215 20% 98%;
+  --popover: 215 28% 7%;
+  --popover-foreground: 215 20% 98%;
+  --primary: 250 90% 70%;        /* Lighter Indigo for dark mode */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 25% 18%;      /* Slate-800 */
+  --secondary-foreground: 215 20% 98%;
+  --muted: 215 25% 18%;
+  --muted-foreground: 215 15% 65%;
+  --accent: 215 25% 18%;
+  --accent-foreground: 215 20% 98%;
   --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 20%;        /* Slightly lighter border for dark mode */
-  --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 25% 25%;         /* Slate-700 */
+  --input: 215 25% 18%;
+  --ring: 250 90% 70%;
 }
 
 @layer base {
@@ -64,8 +64,19 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-sans), sans-serif;
+    letter-spacing: 0.01em; /* Looser tracking for readability */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Apply Playfair Display to headings */
+  h1, h2, h3 {
+    font-family: var(--font-display), serif;
+    font-weight: 700;
+  }
+  
+  h1 {
+    font-weight: 800;
   }
 }
 
@@ -93,12 +104,33 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Professional grid pattern utility */
-.bg-grid-pattern {
-  background-image: 
-    linear-gradient(to right, hsl(var(--border) / 0.3) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(var(--border) / 0.3) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+/* Soft mesh gradient pattern - Creative workspace feel */
+.bg-mesh-pattern {
+  background: 
+    radial-gradient(at 0% 0%, hsl(250 90% 60% / 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(250 90% 60% / 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(250 90% 60% / 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(250 90% 60% / 0.03) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, hsl(215 28% 98%) 0px, transparent 100%);
+  background-size: 200% 200%;
+  animation: mesh-move 20s ease infinite;
+}
+
+.dark .bg-mesh-pattern {
+  background: 
+    radial-gradient(at 0% 0%, hsl(250 90% 70% / 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(250 90% 70% / 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, hsl(250 90% 70% / 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(250 90% 70% / 0.05) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, hsl(215 28% 7%) 0px, transparent 100%);
+  background-size: 200% 200%;
+}
+
+@keyframes mesh-move {
+  0%, 100% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
 }
