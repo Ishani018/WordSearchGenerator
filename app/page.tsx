@@ -1335,7 +1335,7 @@ export default function Home() {
                 <BookOpen className="h-6 w-6 text-primary drop-shadow-lg" />
               </div>
               <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-                Printable Puzzle Book Generator
+                PuzzleForge
 +          </h1>
             </div>
             

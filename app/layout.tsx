@@ -18,7 +18,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Word Search Generator",
+  title: "PuzzleForge",
   description: "AI-powered word search puzzle generator",
 };
 
