@@ -196,7 +196,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                   return (
                     <div
                       key={`highlight-${pos}-${idx}`}
-                      className="absolute bg-yellow-300/40 rounded-sm pointer-events-none z-0"
+                      className="absolute bg-yellow-400/70 rounded-sm pointer-events-none z-0"
                       style={{
                         left: `${c * cellSize + 12}px`,
                         top: `${r * cellSize + 12}px`,
@@ -223,12 +223,12 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                           text-base font-semibold transition-all duration-200 cursor-pointer relative z-10
                           ${isHighlighted 
                               ? showSolution
-                                ? 'bg-green-500 text-white rounded-sm'
+                                ? 'bg-green-600 text-white rounded-sm font-bold'
                                 : isSelected
-                                  ? 'bg-primary text-primary-foreground scale-105 shadow-md rounded-sm'
+                                  ? 'bg-primary text-white scale-105 shadow-md rounded-sm font-bold'
                                   : isHovered
-                                    ? 'bg-yellow-200/60 text-foreground rounded-sm'
-                                    : 'bg-primary/80 text-primary-foreground scale-105 shadow-md rounded-sm'
+                                    ? 'bg-yellow-400/90 text-foreground rounded-sm font-semibold'
+                                    : 'bg-primary text-white scale-105 shadow-md rounded-sm font-bold'
                               : 'bg-white text-foreground hover:bg-gray-50'
                           }
                         `}

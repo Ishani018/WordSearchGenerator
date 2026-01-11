@@ -1477,16 +1477,22 @@ export default function Home() {
                 </button>
                 {isCsvSectionOpen && (
                   <div className="p-5 space-y-4 border-t border-border/50">
-                    <p className="text-xs text-gray-600 mb-3">
-                      Upload a CSV file with words. The file will be automatically split into multiple chapters based on your "Words per Chapter" setting below. You can create unlimited chapters - there is no maximum limit. If you include chapter titles (using <code className="text-[#1F2937]">#TITLE:</code> or title in first column), all words from each chapter will go into one puzzle.
-                    </p>
+                    <div className="text-xs text-gray-600 mb-3 space-y-2">
+                      <p className="font-medium text-[#1F2937]">Quick Guide:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>Upload CSV with words (one per line or "Word, Clue" format)</li>
+                        <li>Unlimited chapters - no maximum limit</li>
+                        <li><strong>With titles:</strong> If CSV has titles (<code className="text-[#1F2937]">#TITLE:</code> or first column), all words per chapter go into one puzzle - <span className="font-semibold text-[#4F46E5]">"Words per Chapter" setting is ignored</span></li>
+                        <li><strong>Without titles:</strong> Words are split by "Words per Chapter" setting below</li>
+                      </ul>
+                    </div>
                     <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#1F2937] mb-2">
-                      Words per Chapter
+                      Words per Chapter <span className="text-gray-500 font-normal">(ignored if CSV has titles)</span>
                     </label>
                     <p className="text-xs text-gray-600 mb-2">
-                      How many words go into each puzzle/chapter. Your CSV will be split into as many chapters as needed. (No limit on total chapters)
+                      Only applies when CSV has no chapter titles. Words per puzzle/chapter for auto-splitting.
                     </p>
                     <input
                       type="number"
@@ -1497,7 +1503,7 @@ export default function Home() {
                       className="w-full px-4 py-2.5 text-sm bg-gray-50 rounded-lg text-[#1F2937] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:bg-white transition-all duration-200"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Example: 1000 words ÷ 50 per chapter = 20 chapters
+                      Example (no titles): 1000 words ÷ 50 per chapter = 20 chapters
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-[#1F2937] mb-3 cursor-pointer group">
