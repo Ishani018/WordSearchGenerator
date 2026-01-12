@@ -19,6 +19,8 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<[number, number] | null>(null);
   const [wordListFontSize, setWordListFontSize] = useState(14);
+  const [foundWords, setFoundWords] = useState<Set<string>>(new Set()); // Track found/valid words
+  const [invalidSelection, setInvalidSelection] = useState<Set<string>>(new Set()); // Track invalid selections
   const gridRef = useRef<HTMLDivElement>(null);
   
   const wordPositionMap = useMemo(() => {
@@ -46,10 +48,17 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
 
   const isCellHighlighted = (row: number, col: number): boolean => {
     if (showSolution) return allSolutionPositions.has(`${row},${col}`);
-    if (selectedCells.size > 0) return selectedCells.has(`${row},${col}`);
+    const cellKey = `${row},${col}`;
+    if (invalidSelection.has(cellKey)) return true; // Invalid selection (red)
+    if (selectedCells.size > 0) return selectedCells.has(cellKey);
+    // Check if cell is part of any found word
+    for (const foundWord of foundWords) {
+      const positionSet = wordPositionMap.get(foundWord);
+      if (positionSet && positionSet.has(cellKey)) return true;
+    }
     if (!hoveredWord) return false;
     const positionSet = wordPositionMap.get(hoveredWord);
-    return positionSet ? positionSet.has(`${row},${col}`) : false;
+    return positionSet ? positionSet.has(cellKey) : false;
   };
 
   const findWordFromSelection = useCallback((cells: Set<string>): string | null => {
@@ -72,6 +81,7 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     setIsSelecting(true);
     setSelectionStart([row, col]);
     setSelectedCells(new Set([`${row},${col}`]));
+    setInvalidSelection(new Set()); // Clear any previous invalid selection
   }, [showSolution]);
 
   const handleMouseMove = useCallback((row: number, col: number) => {
@@ -103,10 +113,17 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
     setIsSelecting(false);
     const foundWord = findWordFromSelection(selectedCells);
     if (foundWord) {
-      setHoveredWord(foundWord);
-      setTimeout(() => { setSelectedCells(new Set()); setHoveredWord(null); }, 1000);
-    } else {
-      setTimeout(() => { setSelectedCells(new Set()); }, 300);
+      // Valid word found - add to found words and keep it green
+      setFoundWords(prev => new Set([...prev, foundWord]));
+      setSelectedCells(new Set());
+      setHoveredWord(null);
+    } else if (selectedCells.size > 0) {
+      // Invalid selection - show red, then clear after 2 seconds
+      setInvalidSelection(new Set(selectedCells));
+      setSelectedCells(new Set());
+      setTimeout(() => {
+        setInvalidSelection(new Set());
+      }, 2000);
     }
     setSelectionStart(null);
   }, [isSelecting, selectedCells, findWordFromSelection]);
@@ -145,6 +162,11 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
             setShowSolution(!showSolution);
             setSelectedCells(new Set());
             setHoveredWord(null);
+            if (!showSolution) {
+              // When hiding solution, clear found words
+              setFoundWords(new Set());
+              setInvalidSelection(new Set());
+            }
           }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 hover:scale-105 active:scale-95 border ${
             showSolution
@@ -212,6 +234,11 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                     const isHighlighted = isCellHighlighted(rowIndex, colIndex);
                     const isSelected = selectedCells.has(`${rowIndex},${colIndex}`);
                     const isHovered = hoveredPositions.has(`${rowIndex},${colIndex}`);
+                    const isInvalid = invalidSelection.has(`${rowIndex},${colIndex}`);
+                    const isFound = Array.from(foundWords).some(word => {
+                      const positionSet = wordPositionMap.get(word);
+                      return positionSet ? positionSet.has(`${rowIndex},${colIndex}`) : false;
+                    });
                     
                     return (
                       <motion.div
@@ -221,15 +248,19 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                         className={`
                           aspect-square flex items-center justify-center
                           text-base font-semibold transition-all duration-200 cursor-pointer relative z-10
-                          ${isHighlighted 
-                              ? showSolution
-                                ? 'bg-green-600 text-white rounded-sm font-bold'
+                          ${showSolution
+                            ? isHighlighted
+                              ? 'bg-green-600 text-white rounded-sm font-bold'
+                              : 'bg-white text-foreground'
+                            : isInvalid
+                              ? 'bg-red-500 text-white rounded-sm font-bold'
+                              : isFound
+                                ? 'bg-green-500 text-white rounded-sm font-bold'
                                 : isSelected
-                                  ? 'bg-primary text-white scale-105 shadow-md rounded-sm font-bold'
+                                  ? 'bg-indigo-700 text-white scale-105 shadow-md rounded-sm font-bold'
                                   : isHovered
                                     ? 'bg-yellow-400/90 text-foreground rounded-sm font-semibold'
-                                    : 'bg-primary text-white scale-105 shadow-md rounded-sm font-bold'
-                              : 'bg-white text-foreground hover:bg-gray-50'
+                                    : 'bg-white text-foreground hover:bg-gray-50'
                           }
                         `}
                         style={{
@@ -278,9 +309,11 @@ export default function PuzzlePreview({ grid, placedWords, title = 'Word Search 
                   px-3 py-2 rounded-md cursor-pointer text-sm font-medium transition-colors
                   ${showSolution
                     ? 'text-green-600 dark:text-green-400 bg-green-500/10'
-                    : hoveredWord === word
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                    : foundWords.has(word)
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : hoveredWord === word
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                   }
                 `}
                 style={{ fontSize: `${wordListFontSize}px` }}
